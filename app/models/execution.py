@@ -12,7 +12,7 @@ class Execution:
         self.executable = executable
         self.changes = False
 
-    def edit_config(self, key_path: str, value: str, add_field=False):
+    def edit_config(self, key_path: str, value, add_field=False):
         """
         Edits the cached config
 

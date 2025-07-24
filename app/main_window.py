@@ -1,5 +1,11 @@
 import os
 
+from importlib.resources import files
+from app.controllers.config_controller import ConfigController
+from app.controllers.main_controller import MainController
+from app.views.main_window_ui import Ui_MainWindow
+from PySide6.QtCore import Qt, QRect, QUrl
+from PySide6.QtWidgets import QMainWindow, QDialog, QVBoxLayout, QPushButton
 from PySide6.QtCore import QUrl
 from PySide6.QtWidgets import (
     QMainWindow, QDialog, QVBoxLayout,
@@ -15,14 +21,16 @@ from app.controllers.visualisation_controller import VisualisationController
 
 
 def setup_main_window():
-    try:
+    try :
+        # Attempts to import the UI
         from app.views.main_window_ui import Ui_MainWindow
     except ModuleNotFoundError:
         compile_ui()
         from app.views.main_window_ui import Ui_MainWindow
-    return Ui_MainWindow()
+    window = Ui_MainWindow()
+    return window
 
-
+# set the code good minimal unit test
 class FullHtmlDialog(QDialog):
     def __init__(self, file_path: str):
         super().__init__()
@@ -44,12 +52,15 @@ class MainWindow(QMainWindow):
 
         # —— Controllers —— #
         self.configCtrl = ConfigController(self.ui)
-        from app.controllers.side_bar_controller import SideBarController
+        # SideBarController handles RNX and Output file selection
+        from app.controllers.side_bar_controller import SideBarController  # local import avoids circular issues
         self.observationCtrl = SideBarController(self.ui, self)
         self.visCtrl = VisualisationController(self.ui, self)
-        # If using a live server (e.g. VSCode Live Server):
+        # If using a live server (e.g. VSCode Live Server) expose base URL here
         self.visCtrl.set_external_base_url("http://127.0.0.1:5501/")
+        # gather controllers for reference, if needed elsewhere
         self.controllers = [self.configCtrl, self.observationCtrl, self.visCtrl]
+        # connect controller ready signal to handler
         self.observationCtrl.ready.connect(self.on_files_ready)
 
         # —— State variables —— #
@@ -61,9 +72,13 @@ class MainWindow(QMainWindow):
         self.ui.processButton.setEnabled(False)
 
         # —— Signal connections —— #
+        # Process button performs processing once both files are selected (enabled by SideBarController)
         self.ui.processButton.clicked.connect(self._on_process_clicked)
 
-        # —— “Open in Browser” button —— #
+        # # —— Double-click visualization area for full view —— #
+        # self.ui.visualisationTextEdit.setAttribute(Qt.WA_AcceptTouchEvents)
+
+        # create a button to open the current html file in browser
         self.openInBrowserBtn = QPushButton("Open in Browser", self)
         self.ui.rightLayout.addWidget(self.openInBrowserBtn)
         self.visCtrl.bind_open_button(self.openInBrowserBtn)
@@ -82,8 +97,7 @@ class MainWindow(QMainWindow):
     # Processing / visualisation pipeline (minimal version)
     # ------------------------------------------------------------------
     def _on_process_clicked(self):
-        """Placeholder for calling backend model; loads fig1 and fig2 for demo."""
-        extractor = InputExtractController(self.ui)
+        """Placeholder for calling backend model; minimal version loads example html."""
 
         if not self.rnx_file:
             self.ui.terminalTextEdit.append("Please select a RNX file first.")
@@ -92,25 +106,28 @@ class MainWindow(QMainWindow):
             self.ui.terminalTextEdit.append("Please select an output directory first.")
             return
 
-        # Demo: load both fig1.html and fig2.html
-        fig1 = os.path.join(EXAMPLE_DIR, "visual", "fig1.html")
-        fig2 = os.path.join(EXAMPLE_DIR, "visual", "fig2.html")
 
-        htmls = []
-        for path in (fig1, fig2):
-            if os.path.exists(path):
-                htmls.append(path)
-            else:
-                self.ui.terminalTextEdit.append(f"Cannot find file: {path}")
 
-        if not htmls:
-            return
+        # ── launch the backend ────────────────────────────────────────
+        try:
+            controller = MainController(self.ui, str(files("tests.resources").joinpath("inputData")), str(files("tests.resources").joinpath("inputData/products")), self.rnx_file, self.output_dir)
+            controller.execute_backend_process()
+            self.ui.terminalTextEdit.append("✔️ Processing finished.")
+        except Exception as err:
+            self.ui.terminalTextEdit.append(f"❌ Processing failed: {err}")
 
-        self.ui.terminalTextEdit.append(f"Displaying visualisations: {htmls}")
-        self.visCtrl.set_html_files(htmls)
 
+
+        # ── Minimal version: manually use example/visual/fig1.html ── #
+        #fig1 = os.path.join(EXAMPLE_DIR, "visual", "fig1.html")
+        #if not os.path.exists(fig1):
+        #    self.ui.terminalTextEdit.append(f"Cannot find fig1.html at: {fig1}")
+        #    return
+
+        #self.ui.terminalTextEdit.append(f"Displaying visualisation: {fig1}")
+        # Register & show via visualisation controller
+        #self.visCtrl.set_html_files([fig1])
 
         # ── Replace with real backend call when ready:
         # html_paths = backend.process(self.rnx_file, self.output_dir, **extractor.get_params())
         # self.visCtrl.set_html_files(html_paths)
-
