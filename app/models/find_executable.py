@@ -25,11 +25,10 @@ def get_pea_exec():
     else:
         raise RuntimeError("Unsupported platform: " + platform.system())
 
-    # Test and return executable
-    #if not executable:
-        #raise RuntimeError("No executable found on *supported* system: " + platform.system())
-    #else:
-        #return executable
+    if not executable:
+        raise RuntimeError("No executable found on *supported* system: " + platform.system())
+    else:
+        return executable
 
 if __name__ == "__main__":
     print(get_pea_exec())

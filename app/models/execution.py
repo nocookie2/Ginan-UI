@@ -1,16 +1,15 @@
 import os
 import subprocess
-from importlib.resources.abc import Traversable
 
 from app.utils.yaml import load_yaml, write_yaml
 
 
 class Execution:
-    def __init__(self, config_path: str | Traversable, executable):
+    def __init__(self, config_path: str, executable):
         self.config_path = config_path
         self.config = load_yaml(config_path)
-        self.executable = executable
-        self.changes = False
+        self.executable = executable # the PEA executable
+        self.changes = False # Flag to track if config has been changed
 
     def edit_config(self, key_path: str, value, add_field=False):
         """
@@ -21,10 +20,10 @@ class Execution:
         :param add_field: Adds field if it doesn't exist
         :raises KeyError if key not found
         """
-        self.changes = True
-
+        self.changes = True # Mark config as changed
         keys = key_path.split(".")
-        node = self.config # Should be a reference
+
+        node = self.config
         for key in keys[:-1]: # Ensure key path validity
             if key not in node:
                 raise KeyError(f"Key '{key}' not found in {node}")
@@ -33,10 +32,6 @@ class Execution:
             if keys[-1] not in node:
                 raise KeyError(f"Key '{keys[-1]}' not found in {node}")
         node[keys[-1]] = value
-
-    def load_config(self, config_path):
-        self.config_path = config_path
-        self.config = load_yaml(self.config_path)
 
     def write_config(self):
         write_yaml(self.config_path, self.config)

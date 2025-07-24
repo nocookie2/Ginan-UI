@@ -67,7 +67,5 @@ class MainController:
         execution.write_config()
         #execution.execute_config()  # Will execute PEA with the provided config
 
-        # 3. PEA processes the data, and eventually outputs the files.
-
         # 4. Plot the output using plot_pos.py or other means.
         # TODO
