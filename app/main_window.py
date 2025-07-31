@@ -60,6 +60,9 @@ class MainWindow(QMainWindow):
         # RNX/Output selection readiness
         self.inputCtrl.ready.connect(self.on_files_ready)
 
+        # PEA processing readiness
+        self.inputCtrl.pea_ready.connect(self._on_process_clicked)
+
         # —— State variables —— #
         self.rnx_file:   str | None = None
         self.output_dir: str | None = None
@@ -69,8 +72,8 @@ class MainWindow(QMainWindow):
         self.ui.processButton.setEnabled(False)
 
         # —— Signal connections —— #
-        # MainWindow is the single owner of the "Process" action
-        self.ui.processButton.clicked.connect(self._on_process_clicked)
+        # Note: processButton.clicked is now handled by InputController for basic validation
+        # MainWindow will handle the actual PEA processing through a different mechanism
 
         # —— Visualisation helpers —— #
         self.openInBrowserBtn = QPushButton("Open in Browser", self)
