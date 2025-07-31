@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+from datetime import datetime
 from typing import Callable, List
 
 from PySide6.QtCore import QObject, Signal, Qt, QDateTime
@@ -32,6 +33,7 @@ class InputController(QObject):
         - Extract RINEX metadata and apply to UI
         - Populate / handle config widgets (Mode, Constellations, etc.)
         - Open small dialogs for selecting some values
+        - Show config file and run PEA processing
 
     Emits:
         ready(rnx_path: str, output_path: str)
@@ -40,6 +42,7 @@ class InputController(QObject):
     """
 
     ready = Signal(str, str) # rnx_path, output_path
+    pea_ready = Signal() # emitted when PEA processing should start
 
     def __init__(self, ui, parent_window):
         super().__init__()
@@ -48,6 +51,10 @@ class InputController(QObject):
 
         self.rnx_file: str = ""
         self.output_dir: str = ""
+        
+        # Config file path
+        self.default_config_path = "app/resources/Yaml/default_config.yaml"
+        self.config_path = None
 
         ### Wire: file selection buttons ###
         self.ui.observationsButton.clicked.connect(self.load_rnx_file)
@@ -101,9 +108,10 @@ class InputController(QObject):
         self.ui.dataIntervalButton.clicked.connect(self._open_data_interval_dialog)
         self.ui.dataIntervalButton.setCursor(Qt.CursorShape.PointingHandCursor)
 
-        # Show-config file chooser. (Does NOT trigger processing.)
-        # self.ui.showConfigButton.clicked.connect(self.on_show_config)
-        # self.ui.showConfigButton.setCursor(Qt.CursorShape.PointingHandCursor)
+        # Show config and Run PEA buttons
+        self.ui.showConfigButton.clicked.connect(self.on_show_config)
+        self.ui.showConfigButton.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.ui.processButton.clicked.connect(self.on_run_pea)
 
     #region File Selection + Metadata Extraction
 
@@ -167,7 +175,7 @@ class InputController(QObject):
     #region Multi-Selectors Assigning (A.K.A. Combo Plumbing)
 
     def _on_select(self, combo: QComboBox, label, title: str, index: int):
-        """Mirror combo selection to label and reset combo’s placeholder text."""
+        """Mirror combo selection to label and reset combo's placeholder text."""
         value = combo.itemText(index)
         label.setText(value)
 
@@ -200,7 +208,7 @@ class InputController(QObject):
             placeholder: str,
     ):
         """
-        On open, replace the combo’s model with checkbox items and mirror all checked items
+        On open, replace the combo's model with checkbox items and mirror all checked items
         as comma-separated text to mirror_label.
         """
         combo._old_showPopup = combo.showPopup
@@ -358,25 +366,152 @@ class InputController(QObject):
 
     #endregion
 
-    #region "Show Config" Button
+    #region Config and PEA Processing
 
-    # TODO: Currently opens a file picker? Not meant to do that
+    def _generate_modified_config_yaml(self, config_parameters):
+        """
+        Args:
+            config_parameters (dict): modified config parameters directory
+                example: {
+                    'setting1': 'value1',
+                    'setting2': 'value2',
+                    'nested_config': {
+                        'subsetting1': 'subvalue1'
+                    }
+                }
+        
+        Returns:
+            str: generated YAML file path, should return the path in the format of /resources/Yaml/xxxx.yaml
+        
+        TODO: backend please implement the following functions:
+        1. receive config_parameters parameter
+        2. convert the parameters to YAML format
+        3. save to /resources/Yaml/ directory
+        4. file name format can be: timestamp.yaml, config_v1.yaml, etc.
+        5. return the complete file path
+        
+        Note: the current UI version uses the hardcode path /resources/Yaml/default_config.yaml
+        """
+        # TODO: backend please implement functions here.
+        return self.default_config_path
 
     def on_show_config(self):
-        file_path, _ = QFileDialog.getOpenFileName(
-            None,
-            "Select a YAML config file",
-            "",
-            "YAML files (*.yml *.yaml)",
-        )
-        if not file_path:
-            return
+        """
+        Show config file
+        Open the fixed path YAML config file: /resources/Yaml/default_config.yaml
+        No longer need to manually select files
+        """
+        print("opening default config file...")
 
+        file_path = self.default_config_path
+        
+        if not os.path.exists(file_path):
+            QMessageBox.warning(
+                None,
+                "File not found",
+                f"The file {file_path} does not exist."
+            )
+            return
+        
         if not (file_path.endswith(".yml") or file_path.endswith(".yaml")):
-            QMessageBox.warning(None, "File format error", "Please select a file ending with .yml or .yaml")
+            QMessageBox.warning(
+                None,
+                "File Format Error",
+                f"The file is not a valid YAML file:\n{file_path}"
+            )
             return
 
-        self.config_path = file_path  # stored for other components if needed
+        self.config_path = file_path
+        self.on_open_config_in_editor(self.config_path)
+
+    def on_open_config_in_editor(self, file_path):
+        """
+        Open the config file in an external editor
+        
+        Args:
+            file_path (str): the complete path of the YAML config file
+        """
+        import subprocess
+        import platform
+
+        if not file_path:
+            QMessageBox.warning(
+                None,
+                "No File Path",
+                "No config file path specified."
+            )
+            return
+        
+        if not os.path.exists(file_path):
+            QMessageBox.critical(
+                None,
+                "File Not Found",
+                f"Config file not found:\n{file_path}"
+            )
+            return
+        
+        try:
+            abs_path = os.path.abspath(file_path)
+            print(f"Opening config file: {abs_path}")
+            
+            # Open the file with the appropriate method for the operating system
+            if platform.system() == "Windows":
+                os.startfile(abs_path)
+                print("Opened with default Windows application")
+                
+            elif platform.system() == "Darwin":  # macOS
+                subprocess.run(["open", abs_path])
+                print("Opened with default macOS application")
+                
+            else:  # Linux and other Unix-like systems
+                subprocess.run(["xdg-open", abs_path])
+                print("Opened with default Linux application")
+                
+        except Exception as e:
+            error_message = f"Cannot open config file:\n{file_path}\n\nError: {str(e)}"
+            print(f"Error: {error_message}")
+            QMessageBox.critical(
+                None,
+                "Error Opening File",
+                error_message
+            )
+
+    def on_run_pea(self):
+        """Run PEA processing with validation"""
+        raw = self.ui.timeWindowValue.text()
+        print(raw)
+        try:
+            start_str, end_str = raw.split("to")
+            start = datetime.strptime(start_str.strip(), "%Y-%m-%d_%H:%M:%S")
+            end = datetime.strptime(end_str.strip(), "%Y-%m-%d_%H:%M:%S")
+        except ValueError:
+            QMessageBox.warning(
+                None,
+                "Format error",
+                "Time window must be in the format:\n"
+                "YYYY-MM-DD_HH:MM:SS to YYYY-MM-DD_HH:MM:SS"
+            )
+            return
+
+        if start > end:
+            QMessageBox.warning(
+                None,
+                "Time error",
+                "Start time cannot be later than end time."
+            )
+            return
+
+        if not getattr(self, "config_path", None):
+            QMessageBox.warning(
+                None,
+                "No config file",
+                "Please click Show config and select a YAML file first."
+            )
+            return
+
+        self.ui.terminalTextEdit.clear()
+        self.ui.terminalTextEdit.append("Basic validation passed, starting PEA execution...")
+        self.pea_ready.emit()
 
     #endregion
 
@@ -393,21 +528,19 @@ class InputController(QObject):
 
     @staticmethod
     def _select_rnx_file(parent) -> str:
-        caption = "Select RINEX File"
-        filters = "RINEX Files (*.rnx *.rnx.gz);;All Files (*)"
-        path, _ = QFileDialog.getOpenFileName(parent, caption, "", filters)
+        """Select RINEX file using file dialog"""
+        path, _ = QFileDialog.getOpenFileName(
+            parent, 
+            "Select RINEX Observation File", 
+            "", 
+            "RINEX Observation Files (*.rnx *.rnx.gz);;All Files (*.*)"
+        )
         return path or ""
 
     @staticmethod
     def _select_output_dir(parent) -> str:
-        """Default to .../app/resources/output if present, else current module dir."""
-        system_file_path = os.path.dirname(os.path.abspath(__file__))
-        resources_file_path = os.path.normpath(os.path.join(system_file_path, "..", "app", "resources"))
-        output_file_path = os.path.join(resources_file_path, "output")
-
-        default_dir = output_file_path if os.path.isdir(output_file_path) else system_file_path
-        caption = "Select Output Directory"
-        path = QFileDialog.getExistingDirectory(parent, caption, default_dir)
+        """Select output directory using file dialog"""
+        path = QFileDialog.getExistingDirectory(parent, "Select Output Directory")
         return path or ""
 
     #endregion
