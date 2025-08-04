@@ -76,22 +76,9 @@ class InputController(QObject):
             self.ui.Constellations_2,
             self._get_constellations_items,
             self.ui.constellationsValue,
-            placeholder="Constellations",
+            placeholder="Select one or more",
         )
 
-        # On selection of single-choice combos, mirror value to right-side labels
-        self.ui.Mode.activated.connect(
-            lambda idx: self._on_select(self.ui.Mode, self.ui.modeValue, "Mode", idx)
-        )
-        self.ui.Antenna_type.activated.connect(
-            lambda idx: self._on_select(self.ui.Antenna_type, self.ui.antennaTypeValue, "Antenna type", idx)
-        )
-        self.ui.PPP_provider.activated.connect(
-            lambda idx: self._on_select(self.ui.PPP_provider, self.ui.pppProviderValue, "PPP provider", idx)
-        )
-        self.ui.PPP_series.activated.connect(
-            lambda idx: self._on_select(self.ui.PPP_series, self.ui.pppSeriesValue, "PPP series", idx)
-        )
 
         # Receiver/Antenna types: allow free-text via popup prompts
         self._enable_free_text_for_receiver_and_antenna()
@@ -211,6 +198,11 @@ class InputController(QObject):
         On open, replace the combo's model with checkbox items and mirror all checked items
         as comma-separated text to mirror_label.
         """
+        combo.setEditable(True)
+        combo.lineEdit().setReadOnly(True)
+        combo.lineEdit().setPlaceholderText(placeholder)
+        combo.setInsertPolicy(QComboBox.NoInsert)
+
         combo._old_showPopup = combo.showPopup
 
         def show_popup():
@@ -222,12 +214,15 @@ class InputController(QObject):
                 model.appendRow(it)
 
             def on_item_changed(_item: QStandardItem):
+                # Collect all checked items
                 selected = [
-                    model.item(r, 0).text()
+                    model.item(r).text()
                     for r in range(model.rowCount())
-                    if model.item(r, 0).checkState() == Qt.Checked
+                    if model.item(r).checkState() == Qt.Checked
                 ]
-                mirror_label.setText(", ".join(selected) if selected else placeholder)
+                text = ", ".join(selected) if selected else placeholder
+                combo.lineEdit().setText(text)
+                mirror_label.setText(text)
 
             model.itemChanged.connect(on_item_changed)
             combo.setModel(model)
@@ -235,11 +230,15 @@ class InputController(QObject):
 
         combo.showPopup = show_popup
         combo.clear()
-        combo.addItem(placeholder)
-        mirror_label.setText(placeholder)
+        combo.lineEdit().clear()
+        combo.lineEdit().setPlaceholderText(placeholder)        
 
     def _enable_free_text_for_receiver_and_antenna(self):
         """Allow entering custom Receiver/Antenna types via popup prompt."""
+        self.ui.Receiver_type.setEditable(True)
+        self.ui.Receiver_type.lineEdit().setReadOnly(True)
+        self.ui.Antenna_type.setEditable(True)
+        self.ui.Antenna_type.lineEdit().setReadOnly(True)
 
         # Receiver type free text
         def _ask_receiver_type():
@@ -247,6 +246,8 @@ class InputController(QObject):
             if ok and text:
                 self.ui.Receiver_type.clear()
                 self.ui.Receiver_type.addItem(text)
+                # Let ComboBox display the selected text itself
+                self.ui.Receiver_type.lineEdit().setText(text)
                 self.ui.receiverTypeValue.setText(text)
 
         self.ui.Receiver_type.showPopup = _ask_receiver_type
@@ -258,6 +259,7 @@ class InputController(QObject):
             if ok and text:
                 self.ui.Antenna_type.clear()
                 self.ui.Antenna_type.addItem(text)
+                self.ui.Antenna_type.lineEdit().setText(text)
                 self.ui.antennaTypeValue.setText(text)
 
         self.ui.Antenna_type.showPopup = _ask_antenna_type
@@ -310,7 +312,9 @@ class InputController(QObject):
 
     def _set_antenna_offset(self, sb_u: QDoubleSpinBox, sb_n: QDoubleSpinBox, sb_e: QDoubleSpinBox, dlg: QDialog):
         u, n, e = sb_u.value(), sb_n.value(), sb_e.value()
-        self.ui.antennaOffsetValue.setText(f"{u}, {n}, {e}")
+        text = f"{u}, {n}, {e}"
+        self.ui.antennaOffsetButton.setText(text)
+        self.ui.antennaOffsetValue.setText(text)
         dlg.accept()
 
     def _open_time_window_dialog(self):
@@ -348,12 +352,13 @@ class InputController(QObject):
 
         s = start_edit.dateTime().toString("yyyy-MM-dd_HH:mm:ss")
         e = end_edit.dateTime().toString("yyyy-MM-dd_HH:mm:ss")
+        self.ui.timeWindowButton.setText(f"{s} to {e}")
         self.ui.timeWindowValue.setText(f"{s} to {e}")
         dlg.accept()
 
     def _open_data_interval_dialog(self):
         val, ok = QInputDialog.getInt(
-            self.ui.dataIntervalValue,
+            self.ui.dataIntervalButton,
             "Data interval",
             "Input interval (seconds):",
             1,
@@ -362,6 +367,8 @@ class InputController(QObject):
         )
         if ok:
             # Keep "X s" to match RNX metadata format and existing parsing in MainController
+            text = f"{val} s"
+            self.ui.dataIntervalButton.setText(text)
             self.ui.dataIntervalValue.setText(f"{val} s")
 
     #endregion
