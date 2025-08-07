@@ -5,8 +5,16 @@ from collections import defaultdict
 from pathlib import Path
 from dotenv import load_dotenv
 import numpy as np
+
+import sys
+sys.path.insert(0, '/home/harry/Ginan_UI_Project/ginan_ui/Ginan-UI')
+
 from app.utils.download_products import create_cddis_file
 from app.utils.gn_functions import GPSDate
+
+
+
+
 
 class cddis_handler ():
     def __init__(self, 
@@ -41,30 +49,24 @@ class cddis_handler ():
         if(date_time_end_str != None):
            self.time_end = self.__str_to_datetime(date_time_end_str)
 
-        
         if(self.df is None and self.time_end is not None):
             self.__download_cddis(self.time_end)
-        
         
         self.__set_valid_products_df()
 
 
     def __download_cddis(self, date_time:datetime):
         gps = GPSDate(np.datetime64(date_time))
-        if(self.df == None):
-            
-            
-            try:
-                load_dotenv(Path(__file__).parent / "cddis.env")
-                create_cddis_file(Path(__file__).parent,gps)
-                print(Path(__file__).parent /"CDDIS.list")
-                self.__parse_product_list_file(Path(__file__).parent /"CDDIS.list")    
-            except: 
-                #wasn't able to get the file  
-                # Due to timeout     
-                raise ValueError                
-                pass
-
+                  
+        try:
+            load_dotenv(Path(__file__).parent / "cddis.env")
+            create_cddis_file(Path(__file__).parent,gps)
+            print(Path(__file__).parent /"CDDIS.list")
+            self.__parse_product_list_file(Path(__file__).parent /"CDDIS.list")    
+        except: 
+            #wasn't able to get the file  
+            # Due to timeout                     
+            pass
 
     def __str_to_datetime(self, date_time_str):
         """
@@ -203,8 +205,12 @@ class cddis_handler ():
         # should really create a dedicated helper function for this 
 
         self.time_end = self.__str_to_datetime(date_time_end_str)
+        self.__download_cddis(self.time_end)
         self.__set_valid_products_df()
         
+
+
+
     def get_valid_products_by_datetime(self, date_time_str:str = None, date_time: datetime = None):
         """
         gets a dataframe of valid products by datetime based on input date time and object CDDIS list
@@ -344,8 +350,10 @@ if __name__ == "__main__":
     print(my_cddis.is_valid_project_solution_tuple("COD","MGX","FIN"))
     print(my_cddis.get_optimal_project_solution_tuple("COD"))
     print(my_cddis.get_optimal_project_solution_tuple("EMR"))
-    #my_cddis.set_date_time_end("2025-04-14T01:30")
-    #print(my_cddis.valid_products)
+    my_cddis.set_date_time_end("2025-07-14T01:30")
+    print(my_cddis.time_end)
+    print(my_cddis.df)
+    print(my_cddis.valid_products)
 
 
 
