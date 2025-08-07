@@ -515,9 +515,10 @@ class InputController(QObject):
                 "Please click Show config and select a YAML file first."
             )
             return
-
-        self.ui.terminalTextEdit.clear()
-        self.ui.terminalTextEdit.append("Basic validation passed, starting PEA execution...")
+        
+        # just for sprint 4 exhibition
+        # self.ui.terminalTextEdit.clear()
+        # self.ui.terminalTextEdit.append("Basic validation passed, starting PEA execution...")
         self.pea_ready.emit()
 
     #endregion

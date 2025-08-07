@@ -2,7 +2,7 @@ inputs:
     inputs_root:  #USER_SET
 
 
-    atx_files: [igs20.atx] # required
+    atx_files: [igs20.atx] # Required
     igrf_files: [tables/igrf13coeffs.txt]
     ###erp_files: [finals.data.iau2000.txt]
     planetary_ephemeris_files: [tables/DE436.1950.2050]
@@ -11,40 +11,40 @@ inputs:
         gpt2grid_files: [tables/gpt_25.grd]
 
     tides:
-        ocean_tide_loading_blq_files: [tables/OLOAD_GO.BLQ] # required if ocean loading is applied
-        atmos_tide_loading_blq_files: [tables/ALOAD_GO.BLQ] # required if atmospheric tide loading is applied
-        ocean_pole_tide_loading_files: [tables/opoleloadcoefcmcor.txt] # required if ocean pole tide loading is applied
+        ocean_tide_loading_blq_files: [tables/OLOAD_GO.BLQ] # Required if ocean loading is applied
+        atmos_tide_loading_blq_files: [tables/ALOAD_GO.BLQ] # Required if atmospheric tide loading is applied
+        ocean_pole_tide_loading_files: [tables/opoleloadcoefcmcor.txt] # Required if ocean pole tide loading is applied
 
     snx_files:
-        # - "*.SNX" # use a wild card to include all files matching the description in the directory
-        -  #USERSET
+        # Use a wild card (*) to include all files matching the description in the directory
+        - "*.SNX"
 
     satellite_data:
-        # nav_files:
-        # - "*.rnx"
+        nav_files:
+            - "BRDC*"
+            # - "*.rnx"
 
-        # product provided
         clk_files:
-            # - "*.CLK"
-            -
+            - "*.CLK"
+
         bsx_files:
-            # - "*.BIA"
-            -
+            - "*.BIA"
+
         sp3_files:
-            # - "*.SP3"
-            -
+            - "*.SP3"
+
 
     gnss_observations:
-        gnss_observations_root: # USER SET
+        gnss_observations_root: #USER_SET
         rnx_inputs:
             # - "*.rnx"
-            -  #USER_INPUT_RNX
+            -  #USER_SET
 
 
 outputs:
     metadata:
-        config_description: default_config_<BRANCH> #USER_INPUT [default_config]_<BRANCH>
-    outputs_root: #USER_INPUT
+        config_description: default_config_<BRANCH> #USER_SET [default_config]_<BRANCH>
+    outputs_root: #USER_SET
 
     gpx:
         output: true
@@ -90,12 +90,12 @@ receiver_options:
                 solid: true # Enable solid Earth tides
                 spole: true # Enable solid Earth pole tides
     TEST: #change to header name of RNX
-        receiver_type:       # USER_INPUT (string)
-        antenna_type:        # USER_INPUT (string)
+        receiver_type:       # #USER_SET (string)
+        antenna_type:        # #USER_SET (string)
         models:
             eccentricity:
                 enable: true
-                offset: [ 0.0000,   0.0000,   0.0000 ] # [floats] USER_SET
+                offset: [ 0.0000,   0.0000,   0.0000 ] # [floats] #USER_SET
 
 processing_options:
     process_modes:
@@ -110,7 +110,7 @@ processing_options:
         end_epoch:           #RNX
         #max_epochs:         2880 # Future user set.
         epoch_interval:      #USER SET
-        wait_next_epoch: 3600  # User set seconds (make large for post-processing)
+        wait_next_epoch: 3600  #USER_SET seconds (make large for post-processing)
 
     gnss_general:
         #eop_comp
@@ -238,7 +238,7 @@ estimation_parameters:
             pos:
                 estimated: [true]
                 sigma: [100]
-                process_noise: [] #[int] USER_SET
+                process_noise: [] #USER_SET [int]
             pos_rate: # Velocity
                 estimated: [false] # [bools] Estimate state in kalman filter
                 sigma: [0] # [floats] Apriori sigma values
