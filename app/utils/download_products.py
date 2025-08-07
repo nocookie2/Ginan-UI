@@ -7,11 +7,11 @@ from dotenv import load_dotenv
 from app.utils.gn_functions import GPSDate
 import numpy as np
 
-# 1.Create an account with CDDIS EMAIL=<your_email> into "cddis.env" file in the same directory as this script.
+# 1. Create an account with CDDIS
 # 2. Create a file named "cddis.env" in the same directory as this script
 # 3. Add EMAIL=<your_account_email> to the "cddis.env" file
 
-#Note: your email should be registered to cddis datetime :)
+# Ensure account is registered and in this file :)
 load_dotenv(Path(__file__).parent / "cddis.env")
 
 
@@ -41,7 +41,7 @@ def create_cddis_file(filepath: Path, reference_start: GPSDate) -> None:
     :param reference_start: The start time for the data retrieval.
     """
     data = retrieve_all_cddis_types(reference_start)
-    with open(filepath.joinpath("CDDIS.list"), "w") as f:
+    with open(filepath.joinpath("../models/CDDIS.list"), "w") as f:
         for d in data:
             try:
                 time = datetime.strptime(d.split("_")[1], "%Y%j%H%M")
