@@ -2,6 +2,11 @@ import re
 from datetime import datetime
 import pandas as pd
 from collections import defaultdict
+from pathlib import Path
+from dotenv import load_dotenv
+import numpy as np
+from app.utils.download_products import create_cddis_file
+from app.utils.gn_functions import GPSDate
 
 class cddis_handler ():
     def __init__(self, 
@@ -11,8 +16,6 @@ class cddis_handler ():
                  ):    
         """
         CDDIS object constructor. Requires CDDIS input and date_time input inorder to access getters 
-
-
 
         :param cddis_str_array:   CDDIS array of products (can be subsituted with cddis_file_path)  
         :param cddis_file_path:   Path to the CDDIS.list file (can be subsituted with cddis_str_array)
@@ -37,7 +40,31 @@ class cddis_handler ():
         # Note can shift over to YYYY-dddHHmm format if needed through datetime.strptime(date_time,"%Y%j%H%M") 
         if(date_time_end_str != None):
            self.time_end = self.__str_to_datetime(date_time_end_str)
+
+        
+        if(self.df is None and self.time_end is not None):
+            self.__download_cddis(self.time_end)
+        
+        
         self.__set_valid_products_df()
+
+
+    def __download_cddis(self, date_time:datetime):
+        gps = GPSDate(np.datetime64(date_time))
+        if(self.df == None):
+            
+            
+            try:
+                load_dotenv(Path(__file__).parent / "cddis.env")
+                create_cddis_file(Path(__file__).parent,gps)
+                print(Path(__file__).parent /"CDDIS.list")
+                self.__parse_product_list_file(Path(__file__).parent /"CDDIS.list")    
+            except: 
+                #wasn't able to get the file  
+                # Due to timeout     
+                raise ValueError                
+                pass
+
 
     def __str_to_datetime(self, date_time_str):
         """
@@ -303,6 +330,22 @@ class cddis_handler ():
                     return project_type_priority,solution_type_priority
                            
         return None,None
+
+
+if __name__ == "__main__":
+    my_cddis = cddis_handler(date_time_end_str="2024-04-14T01:30")
+    #my_cddis = cddis_handler(cddis_file_path="app/resources/cddis_temp/CDDIS.list",date_time_end_str="2024-04-14T01:30")
+    print(my_cddis.df)
+    print(my_cddis.valid_products)
+    print(my_cddis.get_list_of_valid_analysis_centers())
+    print(my_cddis.get_df_of_valid_types_tuples("COD"))
+    print(my_cddis.get_list_of_valid_project_types("COD"))
+    print(my_cddis.get_list_of_valid_solution_types("COD"))
+    print(my_cddis.is_valid_project_solution_tuple("COD","MGX","FIN"))
+    print(my_cddis.get_optimal_project_solution_tuple("COD"))
+    print(my_cddis.get_optimal_project_solution_tuple("EMR"))
+    #my_cddis.set_date_time_end("2025-04-14T01:30")
+    #print(my_cddis.valid_products)
 
 
 
