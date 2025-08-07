@@ -255,7 +255,7 @@ class cddis_handler ():
         # logic for determining project_type priorites
         # probably store some sort of tuple set in resourses folder
         project_type_priorities = None
-        if(satellite_constellations == None):
+        if(not satellite_constellations):
             project_type_priorities = ["MGX"] # "OPS","DEM"
         else:
             raise NotImplementedError("satellite_constellations used in  project_type_priorities not implemented yet")
