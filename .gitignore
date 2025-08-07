@@ -16,3 +16,4 @@ inputData/
 scripts/
 *.TRACE
 *.DS_Store
+app/resources/*.yaml
