@@ -613,6 +613,10 @@ class InputController(QObject):
         """Convert 'start_time to end_time' into (start_epoch, end_epoch)."""
         try:
             start, end = map(str.strip, time_window_raw.split("to"))
+
+            # Replace underscores with spaces in datetime strings
+            start = start.replace("_", " ")
+            end = end.replace("_", " ")
             return start, end
         except ValueError:
             raise ValueError("Invalid time_window format. Expected: 'start_time to end_time'")
@@ -647,7 +651,6 @@ class InputController(QObject):
         rnx_path: str
         output_path: str
 
-    # endregion
     #endregion
 
     #region Statics
