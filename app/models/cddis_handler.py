@@ -5,8 +5,6 @@ from collections import defaultdict
 from pathlib import Path
 from dotenv import load_dotenv
 import numpy as np
-import sys
-sys.path.insert(0, '/home/harry/Ginan_UI_Project/ginan_ui/Ginan-UI')
 from app.utils.download_products import create_cddis_file
 from app.utils.gn_functions import GPSDate
 
