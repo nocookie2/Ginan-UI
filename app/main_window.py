@@ -1,4 +1,5 @@
 import os
+import glob
 from importlib.resources import files
 
 from PySide6.QtCore import QUrl
@@ -100,35 +101,46 @@ class MainWindow(QMainWindow):
             self.ui.terminalTextEdit.append("Please select an output directory first.")
             return
 
-        # —— Launch the backend —— #
-        try:
-            controller = MainController(
-                self.ui,
-                str(files("tests.resources").joinpath("inputData")),
-                str(files("tests.resources").joinpath("inputData/products")),
-                self.rnx_file,
-                self.output_dir,
-            )
+        # # —— Launch the backend —— #
+        # try:
+        #     controller = MainController(
+        #         self.ui,
+        #         str(files("tests.resources").joinpath("inputData")),
+        #         str(files("tests.resources").joinpath("inputData/products")),
+        #         self.rnx_file,
+        #         self.output_dir,
+        #     )
 
-            # Call the backend process
-            controller.execute_backend_process()
-            self.ui.terminalTextEdit.append("✔️ Processing finished.")
-        except Exception as err:
-            self.ui.terminalTextEdit.append(f"❌ Processing failed: {err}")
+        #     # Call the backend process
+        #     controller.execute_backend_process()
+        #     self.ui.terminalTextEdit.append("✔️ Processing finished.")
+        # except Exception as err:
+        #     self.ui.terminalTextEdit.append(f"❌ Processing failed: {err}")
+        
+        # just for sprint 4 show 
+        html_dir = os.path.join(self.output_dir, "visual")
+        pattern = os.path.join(html_dir, "*.html")
+        html_files = sorted(glob.glob(pattern))
+        if not html_files:
+            self.ui.terminalTextEdit.append(f"Cannot find any .html in {html_dir}")
+            return
+        self.ui.terminalTextEdit.append(f"Displaying {len(html_files)} visualisation(s) from {html_dir}")
+        self.visCtrl.set_html_files(html_files)
+        
 
 
 
-        # ── Minimal version: manually use example/visual/fig1.html ── #
-        #fig1 = os.path.join(EXAMPLE_DIR, "visual", "fig1.html")
-        #if not os.path.exists(fig1):
+        # # ── Minimal version: manually use example/visual/fig1.html ── #
+        # fig1 = os.path.join(EXAMPLE_DIR, "visual", "fig1.html")
+        # if not os.path.exists(fig1):
         #    self.ui.terminalTextEdit.append(f"Cannot find fig1.html at: {fig1}")
         #    return
 
-        #self.ui.terminalTextEdit.append(f"Displaying visualisation: {fig1}")
-        # Register & show via visualisation controller
-        #self.visCtrl.set_html_files([fig1])
+        # self.ui.terminalTextEdit.append(f"Displaying visualisation: {fig1}")
+        # # Register & show via visualisation controller
+        # self.visCtrl.set_html_files([fig1])
 
-        # ── Replace with real backend call when ready:
+        # # ── Replace with real backend call when ready:
         # html_paths = backend.process(self.rnx_file, self.output_dir, **extractor.get_params())
         # self.visCtrl.set_html_files(html_paths)
 
