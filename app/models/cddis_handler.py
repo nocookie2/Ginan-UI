@@ -5,71 +5,40 @@ from collections import defaultdict
 from pathlib import Path
 from dotenv import load_dotenv
 import numpy as np
-
-
+import sys
+sys.path.insert(0, '/home/harry/Ginan_UI_Project/ginan_ui/Ginan-UI')
 from app.utils.download_products import create_cddis_file
 from app.utils.gn_functions import GPSDate
 
-
-
-
-
 class cddis_handler ():
-    def __init__(self, 
-                 cddis_str_array:list[str] = None, 
-                 cddis_file_path:str = None, 
-                 date_time_end_str:str = None
-                 ):    
+    def __init__(self, date_time_end_str:str):    
         """
         CDDIS object constructor. Requires CDDIS input and date_time input inorder to access getters 
-
-        :param cddis_str_array:   CDDIS array of products (can be subsituted with cddis_file_path)  
-        :param cddis_file_path:   Path to the CDDIS.list file (can be subsituted with cddis_str_array)
-        :param date_time_end_str: YYYY-MM-DDTHH:MM Path to the CDDIS.list (optional on init required for query)
+        :param date_time_end_str: YYYY-MM-DDTHH:MM Path to the CDDIS.list ( on init required for query)
         :returns: cddis handeler object 
-        """
-              
+        """      
         self.df = None                                     # pd.dataframe of cddis input
         self.valid_products = None                         # pd.dataframe holding valids products
         self.time_end = None                               # user end time bound
         
-        if(cddis_str_array != None and cddis_file_path != None):
-            raise ValueError("provided only one cddis input")
-
-        if(cddis_str_array != None):
-            self.__df_parse_cddis_str_array(cddis_str_array)
-
-        if(cddis_file_path != None):
-            self.__parse_product_list_file(cddis_file_path) 
-
-        # optional if class is instantiated and values are not known
         # Note can shift over to YYYY-dddHHmm format if needed through datetime.strptime(date_time,"%Y%j%H%M") 
-        if(date_time_end_str != None):
-           self.time_end = self.__str_to_datetime(date_time_end_str)
-
-        if(self.df is None and self.time_end is not None):
-            self.__download_cddis(self.time_end)
-        
+        self.time_end = self.__str_to_datetime(date_time_end_str)
+        self.__download_cddis(self.time_end) #potential improvment instaed of writing out into file write into mem buff
         self.__set_valid_products_df()
-
 
     def __download_cddis(self, date_time:datetime):
         gps = GPSDate(np.datetime64(date_time))
-                  
+        load_dotenv(Path(__file__).parent / "cddis.env")          
+        create_cddis_file(Path(__file__).parent,gps)
         try:
-            load_dotenv(Path(__file__).parent / "cddis.env")
-            create_cddis_file(Path(__file__).parent,gps)
-            print(Path(__file__).parent /"CDDIS.list")
             self.__parse_product_list_file(Path(__file__).parent /"CDDIS.list")    
         except: 
-            #wasn't able to get the file  
-            # Due to timeout                     
-            pass
-
+            raise TimeoutError("CDDIS download timedout")                 
+            
     def __str_to_datetime(self, date_time_str):
         """
         PRIVATE METHOD
-        
+
         :param date_time_str: YYYY-MM-DDTHH:MM
         :returns datetime: datetime.strptime()
         """
@@ -163,32 +132,6 @@ class cddis_handler ():
            ):
             self.valid_products = self.get_valid_products_by_datetime(date_time=self.time_end)
                     
-    def set_cddis_str_array(self,cddis_str_array:list[str]):
-        """
-        method will set cddis internals. based on provided CDDIS list of strings 
-        If the object has been given an date time then it will also populate 
-        the objects valid products data frame.  
-
-        :param cddis_str_array: e.g ["COD0MGXFIN_20250960000_01D_01D_OSB","COD0MGXFIN_20250960000_01D_01D_OSB"] 
-
-        :returns: None (updates object internals)
-        """
-        self.__df_parse_cddis_str_array(cddis_str_array)
-        self.__set_valid_products_df()
-
-    def set_cddis_file_path(self,cddis_file_path:str):
-        """
-        method will set cddis internals. based on provided CDDIS list file 
-        If the object has been given an date time then it will also populate 
-        the objects valid products data frame.  
-
-        :param cddis_file_path: path to cddis file
-
-        :returns: None (updates object internals)
-        """
-        self.__parse_product_list_file(cddis_file_path)
-        self.__set_valid_products_df()
-
     def set_date_time_end(self,date_time_end_str:str):
         """
         method will set cddis internals. based on provided date time 
@@ -206,9 +149,6 @@ class cddis_handler ():
         self.__download_cddis(self.time_end)
         self.__set_valid_products_df()
         
-
-
-
     def get_valid_products_by_datetime(self, date_time_str:str = None, date_time: datetime = None):
         """
         gets a dataframe of valid products by datetime based on input date time and object CDDIS list
@@ -335,10 +275,10 @@ class cddis_handler ():
                            
         return None,None
 
-
 if __name__ == "__main__":
     my_cddis = cddis_handler(date_time_end_str="2024-04-14T01:30")
     #my_cddis = cddis_handler(cddis_file_path="app/resources/cddis_temp/CDDIS.list",date_time_end_str="2024-04-14T01:30")
+    # note that cddis.env setup in utils see download_products.py
     print(my_cddis.df)
     print(my_cddis.valid_products)
     print(my_cddis.get_list_of_valid_analysis_centers())
@@ -352,7 +292,3 @@ if __name__ == "__main__":
     print(my_cddis.time_end)
     print(my_cddis.df)
     print(my_cddis.valid_products)
-
-
-
-
