@@ -36,6 +36,10 @@ def parse_time_window(time_window_raw: str):
     """Convert 'start_time to end_time' into (start_epoch, end_epoch)."""
     try:
         start, end = map(str.strip, time_window_raw.split("to"))
+
+        # Replace underscores with spaces in datetime strings
+        start = start.replace("_", " ")
+        end = end.replace("_", " ")
         return start, end
     except ValueError:
         raise ValueError("Invalid time_window format. Expected: 'start_time to end_time'")
@@ -173,7 +177,7 @@ class MainController:
         execution.edit_config(f"receiver_options.{inputs.marker_name}.receiver_type", inputs.receiver_type, False)
         execution.edit_config(f"receiver_options.{inputs.marker_name}.antenna_type", inputs.antenna_type, False)
         execution.edit_config(f"receiver_options.{inputs.marker_name}.models.eccentricity.offset", inputs.antenna_offset, False)
-        execution.edit_config("estimation_parameters.receivers.global.pos.process_noise", inputs.mode, False)
+        execution.edit_config("estimation_parameters.receivers.global.pos.process_noise", [inputs.mode], False)
 
         # 6. Enable the constellations
         if inputs.constellations_raw:
