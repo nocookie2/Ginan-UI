@@ -3,7 +3,7 @@ from datetime import datetime
 import pandas as pd
 from collections import defaultdict
 
-class cddis ():
+class cddis_handler ():
     def __init__(self, 
                  cddis_str_array:list[str] = None, 
                  cddis_file_path:str = None, 
