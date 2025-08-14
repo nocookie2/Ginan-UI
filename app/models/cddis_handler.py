@@ -8,11 +8,11 @@ import numpy as np
 from app.utils.download_products import create_cddis_file
 from app.utils.gn_functions import GPSDate
 
-class cddis_handler ():
+class CDDIS_Handler ():
     def __init__(self, date_time_end_str:str):    
         """
         CDDIS object constructor. Requires CDDIS input and date_time input inorder to access getters 
-        :param date_time_end_str: YYYY-MM-DDTHH:MM Path to the CDDIS.list ( on init required for query)
+        :param date_time_end_str: YYYY-MM-DD_HH:mm:ss Path to the CDDIS.list ( on init required for query) e.g 2025-05-01_00:00:00
         :returns: cddis handeler object 
         """      
         self.df = None                                     # pd.dataframe of cddis input
@@ -37,14 +37,14 @@ class cddis_handler ():
         """
         PRIVATE METHOD
 
-        :param date_time_str: YYYY-MM-DDTHH:MM
+        :param date_time_str: YYYY-MM-DD_HH:mm:ss
         :returns datetime: datetime.strptime()
         """
         # Note can shift over to YYYY-dddHHmm format if needed through datetime.strptime(date_time,"%Y%j%H%M") 
         try: 
-            return datetime.strptime(date_time_str, "%Y-%m-%dT%H:%M")
+            return datetime.strptime(date_time_str, "%Y-%m-%d_%H:%M:%S")
         except ValueError:             
-            raise ValueError("Invalid datetime format. Use YYYY-MM-DDTHH:MM (e.g. 2025-04-14T01:30)")
+            raise ValueError("Invalid datetime format. Use YYYY-MM-DDTHH:MM (e.g. 2025-05-01_00:00:00)")
 
     def __df_parse_cddis_str_array(self, cddis_str_array:list[str]):
         """
@@ -274,7 +274,7 @@ class cddis_handler ():
         return None,None
 
 if __name__ == "__main__":
-    my_cddis = cddis_handler(date_time_end_str="2024-04-14T01:30")
+    my_cddis = CDDIS_Handler(date_time_end_str="2024-04-14_01:30:00")
     #my_cddis = cddis_handler(cddis_file_path="app/resources/cddis_temp/CDDIS.list",date_time_end_str="2024-04-14T01:30")
     # note that cddis.env setup in utils see download_products.py
     print(my_cddis.df)
@@ -286,7 +286,7 @@ if __name__ == "__main__":
     print(my_cddis.is_valid_project_solution_tuple("COD","MGX","FIN"))
     print(my_cddis.get_optimal_project_solution_tuple("COD"))
     print(my_cddis.get_optimal_project_solution_tuple("EMR"))
-    my_cddis.set_date_time_end("2025-07-14T01:30")
+    my_cddis.set_date_time_end("2025-07-14_01:30:00")
     print(my_cddis.time_end)
     print(my_cddis.df)
     print(my_cddis.valid_products)
