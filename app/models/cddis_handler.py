@@ -8,7 +8,7 @@ import numpy as np
 from app.utils.download_products import create_cddis_file
 from app.utils.gn_functions import GPSDate
 
-class cddis_handler ():
+class CDDIS_Handler ():
     def __init__(self, date_time_end_str:str):    
         """
         CDDIS object constructor. Requires CDDIS input and date_time input inorder to access getters 
@@ -274,7 +274,7 @@ class cddis_handler ():
         return None,None
 
 if __name__ == "__main__":
-    my_cddis = cddis_handler(date_time_end_str="2024-04-14_01:30:00")
+    my_cddis = CDDIS_Handler(date_time_end_str="2024-04-14_01:30:00")
     #my_cddis = cddis_handler(cddis_file_path="app/resources/cddis_temp/CDDIS.list",date_time_end_str="2024-04-14T01:30")
     # note that cddis.env setup in utils see download_products.py
     print(my_cddis.df)
