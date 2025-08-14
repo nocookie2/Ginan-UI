@@ -107,11 +107,11 @@ class InputController(QObject):
 
     #region File Selection + Metadata Extraction
 
-    def load_rnx_file(self):
+    def load_rnx_file(self) -> ExtractedInputs or None:
         """Pick an RNX file, extract metadata, apply to UI, and enable next steps."""
         path = self._select_rnx_file(self.parent)
         if not path:
-            return
+            return None
 
         self.rnx_file = path
         self.ui.terminalTextEdit.append(f"RNX selected: {path}")
@@ -141,10 +141,13 @@ class InputController(QObject):
         except Exception as e:
             self.ui.terminalTextEdit.append(f"Error extracting RNX metadata: {e}")
             print(f"Error extracting RNX metadata: {e}")
+            return None
 
         # If both are available already (user might have chosen output first), emit
         if self.rnx_file and self.output_dir:
             self.ready.emit(self.rnx_file, self.output_dir)
+
+        return result
 
     def load_output_dir(self):
         """Pick an output directory; if RNX is also set, emit ready."""
