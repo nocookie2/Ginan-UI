@@ -43,15 +43,12 @@ class CDDIS_Handler ():
         gps_weeks      = list(range(int(gps_start_week.gpswk), 
             int(gps_end_week.gpswk) + 1))
         cddis_list = []
-        print(gps_start_week)
-        print(gps_weeks)
         ########
         # potential multi thread area
         # make a bunch of seperate calls then 
         try:
             for gps_week in gps_weeks:
                cddis_list += retrieve_all_cddis_types(gps_week)
-               print(gps_week)
         except:
             raise TimeoutError("CDDIS download timedout")
         # semaphor lock until all return 
@@ -101,7 +98,7 @@ class CDDIS_Handler ():
         #
         # <*> . matches 
         #pattern = re.compile(r'^([A-Z0-9]{3})[0-9]([A-Z]{3})([A-Z]{3})_(\d{11})_.{3}_.{3}_.{3}.([A-Z]{3})')
-        pattern = re.compile(r'^([A-Z0-9]{3})[0-9]([A-Z]{3})([A-Z]{3})_(\d{11})_([0-9]{2})._([0-9]{2})._.{3}.([A-Z]{3})')
+        pattern = re.compile(r'^([A-Z0-9]{3})[0-9]([A-Z]{3})([A-Z]{3})_(\d{11})_([0-9]{2})._([0-9]{2})._.{3}.([A-Z0-9]{3})')
         
         parsed_data = []
 
@@ -224,11 +221,10 @@ class CDDIS_Handler ():
         :param date_time_end: datetime.strptime(date_time_str, "%Y-%m-%dT%H:%M")
         :returns valid_products: pd.df of valid products in ({"analysis_center": [], "analysis_center": [(project_type,solution_type)]}) if no valids then return empty df
         """
-
         # upper boundary prune         
         products = self.df[(self.df["end_validity"]+self.df["duration"] >= date_time_end)]
         #products = self.df
-        print(products["file_type"].unique())
+        #print(products["file_type"].unique())
         #print(products["files_types"])
         
         product_tuples = defaultdict(set)
@@ -242,9 +238,6 @@ class CDDIS_Handler ():
             {"analysis_center": k, "available_types": sorted(list(v))}
             for k, v in product_tuples.items()
         ])
-        
-        print(product_tuples)
-
         # lower bound checks
         # validation downwards
         
@@ -389,7 +382,7 @@ class CDDIS_Handler ():
 
 if __name__ == "__main__":
     #my_cddis = CDDIS_Handler(date_time_start_str="2024-04-14_01:30:00",date_time_end_str="2024-04-14_01:30:00")
-    my_cddis = CDDIS_Handler(date_time_start_str="2025-03-05_00:00:00",date_time_end_str="2025-07-05_23:59:30")
+    my_cddis = CDDIS_Handler(date_time_start_str="2025-07-05_00:00:00",date_time_end_str="2025-07-05_23:59:30")
     #my_cddis = CDDIS_Handler(date_time_start_str="2025-07-05_00:00:00",date_time_end_str="2025-07-05_00:00:00")
     
     #my_cddis = cddis_handler(cddis_file_path="app/resources/cddis_temp/CDDIS.list",date_time_end_str="2024-04-14T01:30")
