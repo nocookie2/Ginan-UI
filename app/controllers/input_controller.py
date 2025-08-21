@@ -443,7 +443,6 @@ class InputController(QObject):
             999_999,
         )
         if ok:
-            # Keep "X s" to match RNX metadata format and existing parsing in MainController
             text = f"{val} s"
             self.ui.dataIntervalButton.setText(text)
             self.ui.dataIntervalValue.setText(f"{val} s")
@@ -627,7 +626,6 @@ class InputController(QObject):
         # self.ui.terminalTextEdit.clear()
         # self.ui.terminalTextEdit.append("Basic validation passed, starting PEA execution...")
 
-        # TODO Call the product download using "download_ppp_products(inputs)" and then run PEA
         inputs = self.extract_ui_values(self.rnx_file)
         download_ppp_products(inputs)
         self.pea_ready.emit()

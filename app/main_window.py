@@ -40,7 +40,7 @@ class MainWindow(QMainWindow):
         - Composes InputController and VisualisationController
         - Owns the Process action to start PEA
         - Listens for InputController.ready(rnx_path, output_path)
-        - Invokes MainController to generate PPP outputs and drive visualisation.
+        - Invokes InputController to generate PPP outputs and drive visualisation.
     """
 
     def __init__(self):
