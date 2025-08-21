@@ -548,6 +548,8 @@ class InputController(QObject):
         self.execution.apply_ui_config(inputs)
         self.execution.write_cached_changes()
 
+        # Execution class will throw error when instantiated if the file doesn't exist and it can't create it
+        # This code is run after Execution class is instantiated within this file, thus never will occur
         if not os.path.exists(GENERATED_YAML):
             QMessageBox.warning(
                 None,
@@ -617,19 +619,12 @@ class InputController(QObject):
                 "Start time cannot be later than end time."
             )
             return
-
-        if not getattr(self, "config_path", None):
-            QMessageBox.warning(
-                None,
-                "No config file",
-                "Please click Show config and select a YAML file first."
-            )
-            return
         
         # just for sprint 4 exhibition
         # self.ui.terminalTextEdit.clear()
         # self.ui.terminalTextEdit.append("Basic validation passed, starting PEA execution...")
         self.pea_ready.emit()
+        self.execution.execute_config()
 
     #endregion
 
@@ -650,7 +645,7 @@ class InputController(QObject):
         path, _ = QFileDialog.getOpenFileName(
             parent, 
             "Select RINEX Observation File", 
-            "", 
+            f"{Path(__file__).parent.parent.parent / "tests" / "resources" / "inputData" / "data"}",
             "RINEX Observation Files (*.rnx *.rnx.gz);;All Files (*.*)"
         )
         return path or ""
@@ -658,7 +653,10 @@ class InputController(QObject):
     @staticmethod
     def _select_output_dir(parent) -> str:
         """Select output directory using file dialog"""
-        path = QFileDialog.getExistingDirectory(parent, "Select Output Directory")
+        path = QFileDialog.getExistingDirectory(
+            parent,
+            "Select Output Directory",
+            f"{Path(__file__).parent.parent.parent / "tests" / "resources" / "outputData"}")
         return path or ""
 
     @staticmethod
