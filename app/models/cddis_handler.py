@@ -9,7 +9,7 @@ from app.utils.download_products import retrieve_all_cddis_types
 from app.utils.gn_functions import GPSDate
 
 class CDDIS_Handler ():
-    def __init__(self,date_time_start_str:str, date_time_end_str:str,target_files = ["CLK","BIA"]):    
+    def __init__(self,date_time_start_str:str, date_time_end_str:str,target_files = ["CLK","BIA","SP3"]):    
         """
         CDDIS object constructor. Requires CDDIS input and date_time input inorder to access getters 
         :param date_time_end_str: YYYY-MM-DD_HH:mm:ss Path to the CDDIS.list ( on init required for query) e.g 2025-05-01_00:00:00
@@ -228,7 +228,7 @@ class CDDIS_Handler ():
         # upper boundary prune         
         products = self.df[(self.df["end_validity"]+self.df["duration"] >= date_time_end)]
         #products = self.df
-        #print(products["file_type"].unique())
+        print(products["file_type"].unique())
         #print(products["files_types"])
         
         product_tuples = defaultdict(set)
@@ -389,7 +389,7 @@ class CDDIS_Handler ():
 
 if __name__ == "__main__":
     #my_cddis = CDDIS_Handler(date_time_start_str="2024-04-14_01:30:00",date_time_end_str="2024-04-14_01:30:00")
-    my_cddis = CDDIS_Handler(date_time_start_str="2025-07-05_00:00:00",date_time_end_str="2025-07-05_23:59:30")
+    my_cddis = CDDIS_Handler(date_time_start_str="2025-03-05_00:00:00",date_time_end_str="2025-07-05_23:59:30")
     #my_cddis = CDDIS_Handler(date_time_start_str="2025-07-05_00:00:00",date_time_end_str="2025-07-05_00:00:00")
     
     #my_cddis = cddis_handler(cddis_file_path="app/resources/cddis_temp/CDDIS.list",date_time_end_str="2024-04-14T01:30")
