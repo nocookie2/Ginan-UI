@@ -1,3 +1,29 @@
+"""
+===============================================================================
+CDDIS_Handler Header
+===============================================================================
+------------------------------------------------------------------------------
+Usefull stuff
+------------------------------------------------------------------------------
+from app.cddis_handler import CDDIS_Handler
+
+#auto_populate values if found if none are found then -> (none, none)
+project_type_optimal, solution_type_optimal = my_cddis.get_optimal_project_solution_tuple("COD") 
+
+# returns list of valid analysis_centers that user can input
+valid_ac = my_cddis.get_list_of_valid_analysis_centers()
+
+# returns list of valid project_types for given analysis_centers
+project_types = my_cddis.get_list_of_valid_project_types("COD") 
+
+# returns list of valid solution_types for given analysis_centers
+solution_types = my_cddis.get_list_of_valid_solution_types("COD")
+
+# validate user input is valid where inputs("analysis_center","project_types","solution_type")
+is_valid = my_cddis.is_valid_project_solution_tuple("COD","MGX","FIN")
+
+"""
+
 import re
 from datetime import datetime, timedelta
 import pandas as pd
@@ -160,42 +186,6 @@ class CDDIS_Handler ():
            ):
             self.valid_products = self.get_valid_products_by_datetime(date_time_start=self.time_start,date_time_end=self.time_end,target_files=self.target_files)
                     
-
-    def set_date_time_end(self,date_time_end_str:str):
-        """
-        method will set cddis internals. based on provided date time 
-        If the object has been given an date time then it will also populate 
-        the objects valid products data frame.  
-
-        :param date_time_end_str: YYYY-MM-DDTHH:MM (e.g. 2025-04-14T01:30) 
-
-        :returns: None (updates object internals)
-        """
-        
-        # should really create a dedicated helper function for this 
-
-        self.time_end = self.__str_to_datetime(date_time_end_str)
-        self.__get_cddis_list(self.time_start,self.time_end)
-        self.__set_valid_products_df()
-        
-        
-    def set_date_time_start(self,date_time_start_str:str):
-        """
-        method will set cddis internals. based on provided date time 
-        If the object has been given an date time then it will also populate 
-        the objects valid products data frame.  
-
-        :param date_time_end_str: YYYY-MM-DDTHH:MM (e.g. 2025-04-14T01:30) 
-
-        :returns: None (updates object internals)
-        """
-        
-        # should really create a dedicated helper function for this 
-
-        self.time_start = self.__str_to_datetime(date_time_start_str)
-        self.__get_cddis_list(self.time_start,self.time_end)
-        self.__set_valid_products_df()
-        
     def set_date_time(self,date_time_start_str:str,date_time_end_str:str):
         """
         method will set cddis internals. based on provided date time 
@@ -387,6 +377,10 @@ if __name__ == "__main__":
     
     #my_cddis = cddis_handler(cddis_file_path="app/resources/cddis_temp/CDDIS.list",date_time_end_str="2024-04-14T01:30")
     # note that cddis.env setup in utils see download_products.py
+
+    my_cddis = CDDIS_Handler(
+    date_time_start_str="2025-07-05_00:00:00",
+    date_time_end_str="2025-07-05_23:59:30") # will filter for target files ["CLK","BIA","SP3"]
 
     print(my_cddis.df)
     print(my_cddis.valid_products)
