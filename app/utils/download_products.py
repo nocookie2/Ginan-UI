@@ -15,7 +15,7 @@ import numpy as np
 load_dotenv(Path(__file__).parent / "cddis.env")
 
 
-def retrieve_all_cddis_types(reference_start: GPSDate) -> list[str]:
+def retrieve_all_cddis_types(reference_start:int) -> list[str]:
     """
     Retrieve all CDDIS data types for a given GPS Week.
 
@@ -27,7 +27,7 @@ def retrieve_all_cddis_types(reference_start: GPSDate) -> list[str]:
     ftp_tls.prot_p()  # Secures the TLS connection, mandatory for CDDIS
     files = None
     try:
-        ftp_tls.cwd(f"gnss/products/{reference_start.gpswk}")
+        ftp_tls.cwd(f"gnss/products/{reference_start}")
         files = ftp_tls.nlst()
     except ftplib.all_errors as e:
         print("Error getting file list", e)
@@ -40,7 +40,7 @@ def create_cddis_file(filepath: Path, reference_start: GPSDate) -> None:
     :param filepath: The path to the directory where the file will be created.
     :param reference_start: The start time for the data retrieval.
     """
-    data = retrieve_all_cddis_types(reference_start)
+    data = retrieve_all_cddis_types(reference_start.gpswk)
     with open(filepath.joinpath("../models/CDDIS.list"), "w") as f:
         for d in data:
             try:
