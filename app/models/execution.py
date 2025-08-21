@@ -3,8 +3,10 @@ import shutil
 import subprocess
 from importlib.resources import files
 from pathlib import Path
+import pandas as pd
 
 from app.utils.yaml import load_yaml, write_yaml
+from app.utils.plot_pos import plot_pos_files
 
 TEMPLATE_PATH = Path(__file__).parent.parent / "resources" / "Yaml" / "default_config.yaml"
 GENERATED_YAML = Path(__file__).parent.parent / "resources" / "ppp_generated.yaml"
@@ -102,3 +104,45 @@ class Execution:
         except subprocess.CalledProcessError as e:
             e.add_note("Error executing PEA command")
             raise e
+
+    def build_pos_plots(self, out_dir=None):
+        """
+        Search for .pos and .POS files in outputs_root (or default tests/resources/outputData),
+        and generate .html files in tests/resources/outputData/visual.
+        Return a list of generated html paths (str).
+        """
+        try:
+            outputs_root = self.config["outputs"]["outputs_root"]
+            root = Path(outputs_root).expanduser().resolve()
+        except Exception:
+            # if the outputs_root is not set, use the default tests/resources/outputData
+            root = Path(__file__).resolve().parents[2] / "tests" / "resources" / "outputData"
+            root = root.resolve()
+
+        # if the out_dir is not set, use the default tests/resources/outputData/visual
+        if out_dir is None:
+            out_dir = root / "visual"
+        else:
+            out_dir = Path(out_dir).expanduser().resolve()
+        out_dir.mkdir(parents=True, exist_ok=True)
+
+        htmls = []
+        pos_files = list(root.rglob("*.pos")) + list(root.rglob("*.POS"))
+        if pos_files:
+            try:
+                htmls = plot_pos_files(
+                    input_files=[str(pos_path) for pos_path in pos_files],
+                    save_prefix=str(out_dir / "plot")
+                )
+            except Exception as e:
+                print("[plot_pos] Failed to generate plots:", e)
+                for pos_path in pos_files:
+                    try:
+                        htmls.extend(plot_pos_files(
+                            input_files=[str(pos_path)],
+                            save_prefix=str(out_dir / "plot")
+                        ))
+                    except Exception as e:
+                        print("[plot_pos] Failed:", pos_path, e)
+
+        return htmls
