@@ -1,6 +1,7 @@
 import os
 import glob
 from importlib.resources import files
+from pathlib import Path
 
 from PySide6.QtCore import QUrl
 from PySide6.QtWidgets import QMainWindow, QDialog, QVBoxLayout, QPushButton, QComboBox
@@ -40,7 +41,7 @@ class MainWindow(QMainWindow):
         - Composes InputController and VisualisationController
         - Owns the Process action to start PEA
         - Listens for InputController.ready(rnx_path, output_path)
-        - Invokes MainController to generate PPP outputs and drive visualisation.
+        - Invokes InputController to generate PPP outputs and drive visualisation.
     """
 
     def __init__(self):
@@ -51,7 +52,7 @@ class MainWindow(QMainWindow):
         self.ui.setupUi(self)
 
         # —— Controllers —— #
-        self.execution = Execution(get_pea_exec())
+        self.execution = Execution(executable=get_pea_exec())
         self.inputCtrl = InputController(self.ui, self, self.execution)
         self.visCtrl = VisualisationController(self.ui, self)
 
@@ -83,6 +84,8 @@ class MainWindow(QMainWindow):
         self.visSelector = QComboBox(self)
         self.ui.rightLayout.addWidget(self.visSelector)
         self.visCtrl.bind_selector(self.visSelector)
+        
+
 
     def on_files_ready(self, rnx_path: str, out_path: str):
         """Store file paths received from InputController."""
@@ -100,32 +103,54 @@ class MainWindow(QMainWindow):
             self.ui.terminalTextEdit.append("Please select an output directory first.")
             return
 
-        # —— Launch the backend —— #
-        try:
-            controller = MainController(
-                self.ui,
-                str(files("tests.resources").joinpath("inputData")),
-                str(files("tests.resources").joinpath("inputData/products")),
-                self.rnx_file,
-                self.output_dir,
-            )
+        # —— ignore the PEA processing and jump to the plot generation directly —— #
+        self.ui.terminalTextEdit.append("Skipping PEA processing due to configuration issues")
+        self.ui.terminalTextEdit.append("Testing plot generation directly instead...")
 
-            # Call the backend process
-            controller.execute_backend_process()
-            self.ui.terminalTextEdit.append("✔️ Processing finished.")
+        # 【original PEA processing code】- TODO:need to be fixed by backend team
+        # # —— Launch the backend —— #
+        # try:
+        #     # directly call execution to process
+        #     # temporarily skip configuration application, directly execute
+        #     # self.execution.apply_ui_config(self.inputCtrl.get_inputs())
+        #     self.execution.execute_config()
+        #     self.ui.terminalTextEdit.append("Processing finished.")
+        # except Exception as err:
+        #     self.ui.terminalTextEdit.append(f"Processing failed: {err}")
+        #     return
+
+        # # after the processing is finished, automatically generate the visualizations
+        # try:
+        #     self.ui.terminalTextEdit.append("Generating visualizations...")
+        #     html_files = self.execution.build_pos_plots()
+        #     if html_files:
+        #         self.ui.terminalTextEdit.append(f"Generated {len(html_files)} visualization(s)")
+        #         self.visCtrl.set_html_files(html_files)
+        #     else:
+        #         self.ui.terminalTextEdit.append("No visualizations generated")
+        # except Exception as err:
+        #     self.ui.terminalTextEdit.append(f"Visualization generation failed: {err}")
+        # directly call the plot generation function
+        
+        try:
+            self.ui.terminalTextEdit.append("Testing plot generation directly...")
+            
+            # use the test data directory
+            test_output_dir = Path(__file__).resolve().parents[1] / "tests" / "resources" / "outputData"
+            test_visual_dir = test_output_dir / "visual"
+            
+            self.ui.terminalTextEdit.append(f"Looking for POS files in: {test_output_dir}")
+            
+            test_visual_dir.mkdir(parents=True, exist_ok=True)
+            
+            self.visCtrl.build_from_execution()
+            
+            self.ui.terminalTextEdit.append("Plot generation completed. Check the visualization panel above.")
+                
         except Exception as err:
-            self.ui.terminalTextEdit.append(f"❌ Processing failed: {err}")
-        
-        # just for sprint 4 show 
-        html_dir = os.path.join(self.output_dir, "visual")
-        pattern = os.path.join(html_dir, "*.html")
-        html_files = sorted(glob.glob(pattern))
-        if not html_files:
-            self.ui.terminalTextEdit.append(f"Cannot find any .html in {html_dir}")
-            return
-        self.ui.terminalTextEdit.append(f"Displaying {len(html_files)} visualisation(s) from {html_dir}")
-        self.visCtrl.set_html_files(html_files)
-        
+            self.ui.terminalTextEdit.append(f"Test plot generation failed: {err}")
+            import traceback
+            self.ui.terminalTextEdit.append(f"Details: {traceback.format_exc()}")
 
 
 
@@ -142,5 +167,7 @@ class MainWindow(QMainWindow):
         # # ── Replace with real backend call when ready:
         # html_paths = backend.process(self.rnx_file, self.output_dir, **extractor.get_params())
         # self.visCtrl.set_html_files(html_paths)
+
+
 
     #endregion

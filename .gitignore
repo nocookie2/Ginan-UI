@@ -17,3 +17,7 @@ scripts/
 *.TRACE
 *.DS_Store
 app/resources/*.yaml
+
+# Test output files
+tests/resources/outputData/
+tests/resources/inputData/

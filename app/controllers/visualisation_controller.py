@@ -16,11 +16,16 @@ NOTE:  UI widgets for selecting visualisation (e.g. a ComboBox or QListWidget)
 from __future__ import annotations
 
 import os
+from pathlib import Path
 from typing import List, Sequence, Optional
 from PySide6.QtCore import QRect, QUrl, QObject, QEvent
 from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import QTextEdit, QPushButton, QComboBox
 from PySide6.QtWebEngineWidgets import QWebEngineView
+
+HERE = Path(__file__).resolve()
+ROOT = HERE.parents[2]
+DEFAULT_OUT_DIR = ROOT / "tests" / "resources" / "outputData" / "visual"
 
 class VisualisationController(QObject):
     """Manage visualisation panel interactions."""
@@ -134,3 +139,48 @@ class VisualisationController(QObject):
         if not url.endswith('/'):
             url += '/'
         self.external_base_url = url
+
+    def build_from_execution(self):
+        """
+        let model.execution batch generate .html from .pos,
+        then merge the generated html list with the existing html files and pass it to the existing set_html_files() to display.
+        """
+        try:
+            exec_obj = getattr(self.parent, "execution", None)
+            if exec_obj is None:
+                from PySide6.QtWidgets import QMessageBox
+                QMessageBox.warning(self.ui, "Plot", "execution object is not set")
+                return
+
+            new_html_paths = exec_obj.build_pos_plots()  # default output to tests/resources/outputData/visual
+            
+            existing_html_paths = self._find_existing_html_files()
+
+            all_html_paths = list(set(new_html_paths + existing_html_paths))
+            
+            all_html_paths.sort(key=lambda x: os.path.basename(x))
+            
+            self.set_html_files(all_html_paths)
+            
+        except Exception as e:
+            from PySide6.QtWidgets import QMessageBox
+            QMessageBox.critical(self.ui, "Plot Error", str(e))
+    
+    def _find_existing_html_files(self):
+        existing_files = []
+
+        default_visual_dir = DEFAULT_OUT_DIR
+        if default_visual_dir.exists():
+            for html_file in default_visual_dir.glob("*.html"):
+                existing_files.append(str(html_file))
+
+        if self.external_base_url:
+            pass
+            
+        return existing_files
+
+
+    # # display pos plot
+    # def show_pos_plot(self, pos_file):
+    #     html_path = run_plot_pos(pos_file, "app/resources/pos_plot.html")
+    #     self._embed_html(html_path)
