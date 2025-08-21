@@ -1,3 +1,7 @@
+pandas>=2.0
+numpy>=1.24
+plotly>=5.20
+statsmodels>=0.14
 argcomplete==3.6.2
 attrs==25.3.0
 autocommand==2.2.2
@@ -5,7 +9,7 @@ binaryornot==0.4.4
 boolean.py==5.0
 boto3==1.38.15
 botocore==1.38.15
-breezy==3.3.12
+# breezy==3.3.11  # Build failed on macOS
 certifi==2025.8.3
 cffi==1.17.1
 chardet==5.2.0
@@ -39,7 +43,7 @@ jmespath==1.0.1
 kiwisolver==1.4.8
 legacy-cgi==2.6.3
 license-expression==30.4.1
-lit==20.1.0.dev0
+lit==18.1.8
 MarkupSafe==3.0.2
 matplotlib==3.10.3
 mercurial==7.1
@@ -73,7 +77,7 @@ python-dateutil==2.9.0.post0
 python-debian==0.1.49
 python-dotenv==1.1.1
 pytz==2025.2
-pywayland==0.4.18
+# pywayland==0.4.18  # Not compatible with macOS
 PyYAML==6.0.2
 regex==2025.7.34
 requests==2.32.4
@@ -86,8 +90,8 @@ setuptools==80.9.0
 shiboken6==6.9.1
 shiboken6-generator==6.9.1
 six==1.17.0
-smbus==1.1
-TBB==0.2
+# smbus==1.1.post2  # Linux-only package, not compatible with macOS
+# TBB==0.2  # Package not available on PyPI
 thefuck==3.32
 tomlkit==0.13.3
 tqdm==4.67.1
@@ -97,6 +101,6 @@ tzlocal==5.3.1
 unlzw3==0.2.3
 urllib3==2.5.0
 userpath==1.9.2
-validate==5.0.9
+# validate==1.0.1  # Not compatible with Python 3.13
 wcwidth==0.2.13
 wheel==0.45.1
