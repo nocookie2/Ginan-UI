@@ -650,7 +650,7 @@ class InputController(QObject):
         path, _ = QFileDialog.getOpenFileName(
             parent, 
             "Select RINEX Observation File", 
-            f"{Path(__file__).parent.parent.parent / "tests" / "resources" / "inputData" / "data"}",
+            f"{Path(__file__).parent.parent.parent / 'tests' / 'resources' / 'inputData' / 'data'}",
             "RINEX Observation Files (*.rnx *.rnx.gz);;All Files (*.*)"
         )
         return path or ""
@@ -661,7 +661,7 @@ class InputController(QObject):
         path = QFileDialog.getExistingDirectory(
             parent,
             "Select Output Directory",
-            f"{Path(__file__).parent.parent.parent / "tests" / "resources" / "outputData"}")
+            f"{Path(__file__).parent.parent.parent / 'tests' / 'resources' / 'outputData'}")
         return path or ""
 
     @staticmethod
