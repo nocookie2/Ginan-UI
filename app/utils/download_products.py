@@ -10,9 +10,6 @@ def download_ppp_products(inputs) -> bool:
     start_datetime  = inputs.start_epoch.replace(" ", "_")
     end_datetime    = inputs.end_epoch.replace(" ", "_")
 
-    start_datetime = "2024-07-18_00:00:00"
-    end_datetime = "2024-07-18_23:59:30"
-
     cddis = CDDIS_Handler(end_datetime)
 
     analysis_center = inputs.ppp_provider.upper()
