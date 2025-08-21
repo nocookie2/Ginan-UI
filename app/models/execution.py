@@ -58,7 +58,7 @@ class Execution:
     def apply_ui_config(self, inputs):
         self.changes = True
         # 1. Set core inputs / outputs
-        self.edit_config("inputs.inputs_root", str(TEST_PRODUCTS_PATH) + "/", False)
+        self.edit_config("inputs.inputs_root", str(INPUT_PRODUCTS_PATH) + "/", False)
         self.edit_config("inputs.gnss_observations.gnss_observations_root", str(INPUT_PRODUCTS_PATH), False)
         self.edit_config("inputs.gnss_observations.rnx_inputs", inputs.rnx_path, False)
         self.edit_config("outputs.outputs_root", inputs.output_path, False)

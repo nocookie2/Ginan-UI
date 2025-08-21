@@ -52,7 +52,7 @@ class MainWindow(QMainWindow):
         self.ui.setupUi(self)
 
         # —— Controllers —— #
-        self.execution = Execution(get_pea_exec())
+        self.execution = Execution(executable=get_pea_exec())
         self.inputCtrl = InputController(self.ui, self, self.execution)
         self.visCtrl = VisualisationController(self.ui, self)
 

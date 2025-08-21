@@ -205,7 +205,9 @@ class CDDIS_Handler ():
         # Valid for the given query time.  
         # Follows the same logic from client provided code
         # Where it will check if there is a product that exceeds the query time
-        valid_products = self.df[self.df["end_validity"] >= date_time]
+        valid_products = self.df
+        print(f"valid_products: {valid_products}")
+        print(f"Date_time: {date_time},\nEnd validities: {self.df['end_validity']}")
         
         result = defaultdict(set)
         for _, row in valid_products.iterrows():
