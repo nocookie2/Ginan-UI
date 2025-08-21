@@ -627,9 +627,25 @@ class InputController(QObject):
         # self.ui.terminalTextEdit.append("Basic validation passed, starting PEA execution...")
 
         inputs = self.extract_ui_values(self.rnx_file)
-        download_ppp_products(inputs)
+        # Ignore PPP downloading, TODO: need backend to repair CDDIS connection
+        try:
+            download_ppp_products(inputs)
+        except Exception as e:
+            self.ui.terminalTextEdit.append(f"⚠️ PPP products download failed: {e}")
+            self.ui.terminalTextEdit.append("Continuing without PPP products...")
+        
         self.pea_ready.emit()
-        self.execution.execute_config()
+        
+        # Ignore PEA execution, TODO: need backend to repair configuration problems
+        try:
+            self.execution.execute_config()
+        except Exception as e:
+            self.ui.terminalTextEdit.append(f"⚠️ PEA execution failed: {e}")
+            self.ui.terminalTextEdit.append("Continuing to plot generation...")
+
+        # download_ppp_products(inputs)
+        # self.pea_ready.emit()
+        # self.execution.execute_config()
 
     #endregion
 
