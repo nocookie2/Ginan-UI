@@ -1,15 +1,19 @@
 import os
 import shutil
 import subprocess
+from ruamel.yaml.scalarstring import PlainScalarString
 from importlib.resources import files
 from pathlib import Path
+import pandas as pd
 
 from app.utils.yaml import load_yaml, write_yaml
+from app.utils.plot_pos import plot_pos_files
 
 TEMPLATE_PATH = Path(__file__).parent.parent / "resources" / "Yaml" / "default_config.yaml"
 GENERATED_YAML = Path(__file__).parent.parent / "resources" / "ppp_generated.yaml"
 INPUT_DATA_PATH = Path(__file__).parent.parent / "resources" / "inputData" / "data"
 INPUT_PRODUCTS_PATH = Path(__file__).parent.parent / "resources" / "inputData" / "products"
+TEST_PRODUCTS_PATH = Path(__file__).parent.parent.parent / "tests" / "resources" / "inputData" / "products"
 
 class Execution:
     def __init__(self, executable, config_path: str=GENERATED_YAML):
@@ -54,7 +58,7 @@ class Execution:
     def apply_ui_config(self, inputs):
         self.changes = True
         # 1. Set core inputs / outputs
-        self.edit_config("inputs.inputs_root", str(INPUT_DATA_PATH), False)
+        self.edit_config("inputs.inputs_root", str(INPUT_PRODUCTS_PATH) + "/", False)
         self.edit_config("inputs.gnss_observations.gnss_observations_root", str(INPUT_PRODUCTS_PATH), False)
         self.edit_config("inputs.gnss_observations.rnx_inputs", inputs.rnx_path, False)
         self.edit_config("outputs.outputs_root", inputs.output_path, False)
@@ -64,8 +68,8 @@ class Execution:
             self.config["receiver_options"][inputs.marker_name] = self.config["receiver_options"].pop("TEST")
 
         # 3. Modify the file to include the UI extraction values
-        self.edit_config("processing_options.epoch_control.start_epoch", inputs.start_epoch, False)
-        self.edit_config("processing_options.epoch_control.end_epoch", inputs.end_epoch, False)
+        self.edit_config("processing_options.epoch_control.start_epoch", PlainScalarString(inputs.start_epoch), False)
+        self.edit_config("processing_options.epoch_control.end_epoch", PlainScalarString(inputs.end_epoch), False)
         self.edit_config("processing_options.epoch_control.epoch_interval", inputs.epoch_interval, False)
         self.edit_config(f"receiver_options.{inputs.marker_name}.receiver_type", inputs.receiver_type, True)
         self.edit_config(f"receiver_options.{inputs.marker_name}.antenna_type", inputs.antenna_type, True)
@@ -102,3 +106,45 @@ class Execution:
         except subprocess.CalledProcessError as e:
             e.add_note("Error executing PEA command")
             raise e
+
+    def build_pos_plots(self, out_dir=None):
+        """
+        Search for .pos and .POS files in outputs_root (or default tests/resources/outputData),
+        and generate .html files in tests/resources/outputData/visual.
+        Return a list of generated html paths (str).
+        """
+        try:
+            outputs_root = self.config["outputs"]["outputs_root"]
+            root = Path(outputs_root).expanduser().resolve()
+        except Exception:
+            # if the outputs_root is not set, use the default tests/resources/outputData
+            root = Path(__file__).resolve().parents[2] / "tests" / "resources" / "outputData"
+            root = root.resolve()
+
+        # if the out_dir is not set, use the default tests/resources/outputData/visual
+        if out_dir is None:
+            out_dir = root / "visual"
+        else:
+            out_dir = Path(out_dir).expanduser().resolve()
+        out_dir.mkdir(parents=True, exist_ok=True)
+
+        htmls = []
+        pos_files = list(root.rglob("*.pos")) + list(root.rglob("*.POS"))
+        if pos_files:
+            try:
+                htmls = plot_pos_files(
+                    input_files=[str(pos_path) for pos_path in pos_files],
+                    save_prefix=str(out_dir / "plot")
+                )
+            except Exception as e:
+                print("[plot_pos] Failed to generate plots:", e)
+                for pos_path in pos_files:
+                    try:
+                        htmls.extend(plot_pos_files(
+                            input_files=[str(pos_path)],
+                            save_prefix=str(out_dir / "plot")
+                        ))
+                    except Exception as e:
+                        print("[plot_pos] Failed:", pos_path, e)
+
+        return htmls
