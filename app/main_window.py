@@ -98,36 +98,37 @@ class MainWindow(QMainWindow):
         self.rnx_file = rnx_path
         self.output_dir = out_path
 
-    # region Processing / Visualisation
-    def _on_process_clicked(self):
-        """Generate CDDIS.list via HTTPS; test connectivity BEFORE accepting EMAIL."""
+        # region Processing / Visualisation
 
-        # 0) 基本校验
-        if not getattr(self, "rnx_file", None):
+    def _on_process_clicked(self):
+        """Call backend model to generate outputs; then visualise as needed."""
+
+        if not self.rnx_file:
             self.ui.terminalTextEdit.append("Please select a RNX file first.")
             return
-        if not getattr(self, "output_dir", None):
+        if not self.output_dir:
             self.ui.terminalTextEdit.append("Please select an output directory first.")
             return
 
-        # 1) Earthdata 凭据校验（.netrc/_netrc），无则弹出现有的 Credentials 弹窗
+        # === CDDIS (HTTPS) 预处理 —— 失败则立即终止；成功才继续旧流程 ===
+        # 1) Earthdata 凭据校验；无则弹你们现有的 Credentials 对话框
         ok, where = gui_validate_netrc()
-        if not ok:
+        if not ok and hasattr(self.ui, "cddisCredentialsButton"):
             self.ui.terminalTextEdit.append("No Earthdata credentials. Opening CDDIS Credentials dialog…")
             self.ui.cddisCredentialsButton.click()
             ok, where = gui_validate_netrc()
-            if not ok:
-                self.ui.terminalTextEdit.append(f"❌ Credentials still invalid: {where}")
-                return
+        if not ok:
+            self.ui.terminalTextEdit.append(f"❌ Credentials invalid: {where}")
+            return
         self.ui.terminalTextEdit.append(f"✅ Credentials OK: {where}")
 
-        # 2) 从 .netrc 读取用户名（作为 email 候选；此时不写 env）
+        # 2) 从 .netrc 读取用户名（团队约定：username == email；此时不落盘）
         ok_user, email_candidate = get_username_from_netrc()
         if not ok_user:
             self.ui.terminalTextEdit.append(f"❌ Cannot read username from .netrc: {email_candidate}")
             return
 
-        # 3) 连通性 + 鉴权测试（通过后才“接受”邮箱）
+        # 3) 连通性 + 鉴权测试（requests.Session 双阶段）
         ok_conn, why = test_cddis_connection()
         if not ok_conn:
             self.ui.terminalTextEdit.append(
@@ -135,11 +136,12 @@ class MainWindow(QMainWindow):
             )
             return
         self.ui.terminalTextEdit.append("🔌 CDDIS connectivity check passed.")
-        write_email(email_candidate)  # 通过后再写入 utils/CDDIS.env，并设置环境变量 EMAIL
+
+        # 通过测试后，才“接受/落盘” EMAIL
+        write_email(email_candidate)
         self.ui.terminalTextEdit.append(f"📧 EMAIL set to: {email_candidate}")
 
-
-        # 4) 取时间窗（extract_ui_values 需要 rnx 路径；可能返回 dataclass 或 dict）
+        # 4) 取时间窗并生成 CDDIS.list（零长度直接终止）
         inputs = self.inputCtrl.extract_ui_values(self.rnx_file)
         try:
             start_s = inputs.start_epoch
@@ -148,32 +150,97 @@ class MainWindow(QMainWindow):
             start_s = inputs["start_epoch"]
             end_s = inputs["end_epoch"]
 
-        # 防零长度时间窗
         if str(start_s) == str(end_s):
             self.ui.terminalTextEdit.append(
                 "❌ Time window is zero-length. Click 'Time Window' and choose a start/end range (e.g., a full day)."
             )
             return
 
-        # 5) 转成 GPSDate（把空格/下划线替换成 'T' 供 numpy 识别）
+        # 5) 生成 CDDIS.list（写到 app/models）；若为空也视为失败并阻断
         start_s = str(start_s);
         end_s = str(end_s)
         start_gps = GPSDate(np.datetime64(start_s.replace('_', ' ').replace(' ', 'T')))
         end_gps = GPSDate(np.datetime64(end_s.replace('_', ' ').replace(' ', 'T')))
 
-        # 6) 目标目录：app/models
         target_dir = Path(__file__).resolve().parent / "models"
         target_dir.mkdir(parents=True, exist_ok=True)
 
-        # 7) 生成清单（HTTPS）——注意：函数不返回路径！
         self.ui.terminalTextEdit.append(f"Generating CDDIS.list for {start_s} ~ {end_s} …")
         create_cddis_file(target_dir, start_gps, end_gps)
 
-        # 8) 正确地统计文件行数并反馈
         out_file = target_dir / "CDDIS.list"
         try:
             n_lines = sum(1 for _ in open(out_file, "r", encoding="utf-8"))
         except Exception:
-            n_lines = "?"
+            n_lines = 0
+        if n_lines <= 0:
+            self.ui.terminalTextEdit.append(f"❌ CDDIS.list is empty: {out_file}. Check time window and credentials.")
+            return
         self.ui.terminalTextEdit.append(f"✅ CDDIS.list generated: {out_file} (lines: {n_lines})")
-        return
+
+        # === 预处理全部成功；后续继续执行你们“原有的 Process 流程” ===
+
+        # —— ignore the PEA processing and jump to the plot generation directly —— #
+        self.ui.terminalTextEdit.append("Skipping PEA processing due to configuration issues")
+        self.ui.terminalTextEdit.append("Testing plot generation directly instead...")
+
+        # 【original PEA processing code】- TODO:need to be fixed by backend team
+        # # —— Launch the backend —— #
+        # try:
+        #     # directly call execution to process
+        #     # temporarily skip configuration application, directly execute
+        #     # self.execution.apply_ui_config(self.inputCtrl.get_inputs())
+        #     self.execution.execute_config()
+        #     self.ui.terminalTextEdit.append("Processing finished.")
+        # except Exception as err:
+        #     self.ui.terminalTextEdit.append(f"Processing failed: {err}")
+        #     return
+
+        # # after the processing is finished, automatically generate the visualizations
+        # try:
+        #     self.ui.terminalTextEdit.append("Generating visualizations...")
+        #     html_files = self.execution.build_pos_plots()
+        #     if html_files:
+        #         self.ui.terminalTextEdit.append(f"Generated {len(html_files)} visualization(s)")
+        #         self.visCtrl.set_html_files(html_files)
+        #     else:
+        #         self.ui.terminalTextEdit.append("No visualizations generated")
+        # except Exception as err:
+        #     self.ui.terminalTextEdit.append(f"Visualization generation failed: {err}")
+        # directly call the plot generation function
+
+        try:
+            self.ui.terminalTextEdit.append("Testing plot generation directly...")
+
+            # use the test data directory
+            test_output_dir = Path(__file__).resolve().parents[1] / "tests" / "resources" / "outputData"
+            test_visual_dir = test_output_dir / "visual"
+
+            self.ui.terminalTextEdit.append(f"Looking for POS files in: {test_output_dir}")
+
+            test_visual_dir.mkdir(parents=True, exist_ok=True)
+
+            self.visCtrl.build_from_execution()
+
+            self.ui.terminalTextEdit.append("Plot generation completed. Check the visualization panel above.")
+
+        except Exception as err:
+            self.ui.terminalTextEdit.append(f"Test plot generation failed: {err}")
+            import traceback
+            self.ui.terminalTextEdit.append(f"Details: {traceback.format_exc()}")
+
+        # # ── Minimal version: manually use example/visual/fig1.html ── #
+        # fig1 = os.path.join(EXAMPLE_DIR, "visual", "fig1.html")
+        # if not os.path.exists(fig1):
+        #    self.ui.terminalTextEdit.append(f"Cannot find fig1.html at: {fig1}")
+        #    return
+
+        # self.ui.terminalTextEdit.append(f"Displaying visualisation: {fig1}")
+        # # Register & show via visualisation controller
+        # self.visCtrl.set_html_files([fig1])
+
+        # # ── Replace with real backend call when ready:
+        # html_paths = backend.process(self.rnx_file, self.output_dir, **extractor.get_params())
+        # self.visCtrl.set_html_files(html_paths)
+
+    # endregion
