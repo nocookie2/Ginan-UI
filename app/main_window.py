@@ -1,6 +1,7 @@
 import os
 import glob
 from importlib.resources import files
+from pathlib import Path
 
 from PySide6.QtCore import QUrl
 from PySide6.QtWidgets import QMainWindow, QDialog, QVBoxLayout, QPushButton, QComboBox
@@ -11,17 +12,23 @@ from app.utils.find_executable import get_pea_exec
 from app.utils.ui_compilation import compile_ui
 from app.controllers.input_controller import InputController
 from app.controllers.visualisation_controller import VisualisationController
+from pathlib import Path
+import numpy as np
+from app.utils.gn_functions import GPSDate
+from app.utils.cddis_credentials import validate_netrc as gui_validate_netrc
+from app.utils.download_products_https import create_cddis_file
 
 
 def setup_main_window():
     # Whilst developing, we compile every time :)
-    #try :
+    # try :
     #    from app.views.main_window_ui import Ui_MainWindow
-    #except ModuleNotFoundError:
+    # except ModuleNotFoundError:
     compile_ui()
     from app.views.main_window_ui import Ui_MainWindow
     window = Ui_MainWindow()
     return window
+
 
 class FullHtmlDialog(QDialog):
     def __init__(self, file_path: str):
@@ -33,6 +40,7 @@ class FullHtmlDialog(QDialog):
         layout.addWidget(webview)
         self.resize(800, 600)
 
+
 class MainWindow(QMainWindow):
     """
     Top-level QMainWindow that is essential for the app to run. It:
@@ -40,7 +48,7 @@ class MainWindow(QMainWindow):
         - Composes InputController and VisualisationController
         - Owns the Process action to start PEA
         - Listens for InputController.ready(rnx_path, output_path)
-        - Invokes MainController to generate PPP outputs and drive visualisation.
+        - Invokes InputController to generate PPP outputs and drive visualisation.
     """
 
     def __init__(self):
@@ -51,7 +59,7 @@ class MainWindow(QMainWindow):
         self.ui.setupUi(self)
 
         # —— Controllers —— #
-        self.execution = Execution(get_pea_exec())
+        self.execution = Execution(executable=get_pea_exec())
         self.inputCtrl = InputController(self.ui, self, self.execution)
         self.visCtrl = VisualisationController(self.ui, self)
 
@@ -68,7 +76,7 @@ class MainWindow(QMainWindow):
         self.inputCtrl.pea_ready.connect(self._on_process_clicked)
 
         # —— State variables —— #
-        self.rnx_file:   str | None = None
+        self.rnx_file: str | None = None
         self.output_dir: str | None = None
 
         # —— Signal connections —— #
@@ -89,58 +97,65 @@ class MainWindow(QMainWindow):
         self.rnx_file = rnx_path
         self.output_dir = out_path
 
-    #region Processing / Visualisation
+    # region Processing / Visualisation
     def _on_process_clicked(self):
-        """Call backend model to generate outputs; then visualise as needed."""
+        """Generate CDDIS.list via HTTPS, then stop (skip legacy test/visualisation path)."""
 
-        if not self.rnx_file:
+        # 基本校验
+        if not getattr(self, "rnx_file", None):
             self.ui.terminalTextEdit.append("Please select a RNX file first.")
             return
-        if not self.output_dir:
+        if not getattr(self, "output_dir", None):
             self.ui.terminalTextEdit.append("Please select an output directory first.")
             return
 
-        # —— Launch the backend —— #
+        # === [用 HTTPS 生成 CDDIS.list] 开始 ===
         try:
-            controller = MainController(
-                self.ui,
-                str(files("tests.resources").joinpath("inputData")),
-                str(files("tests.resources").joinpath("inputData/products")),
-                self.rnx_file,
-                self.output_dir,
-            )
+            # 1) 校验 Earthdata 凭据；若缺失则弹出你们已有的“CDDIS Credentials”对话框
+            ok, where = gui_validate_netrc()
+            if not ok:
+                self.ui.terminalTextEdit.append("No Earthdata credentials. Opening CDDIS Credentials dialog…")
+                self.ui.cddisCredentialsButton.click()  # 打开现有凭据弹窗
+                ok, where = gui_validate_netrc()  # 用户保存后再校验
+                if not ok:
+                    self.ui.terminalTextEdit.append(f"❌ Credentials still invalid: {where}")
+                    return
+            self.ui.terminalTextEdit.append(f"✅ Credentials OK: {where}")
 
-            # Call the backend process
-            controller.execute_backend_process()
-            self.ui.terminalTextEdit.append("✔️ Processing finished.")
-        except Exception as err:
-            self.ui.terminalTextEdit.append(f"❌ Processing failed: {err}")
-        
-        # just for sprint 4 show 
-        html_dir = os.path.join(self.output_dir, "visual")
-        pattern = os.path.join(html_dir, "*.html")
-        html_files = sorted(glob.glob(pattern))
-        if not html_files:
-            self.ui.terminalTextEdit.append(f"Cannot find any .html in {html_dir}")
+            # 2) 取时间窗（extract_ui_values 需要 rnx 路径；返回 dataclass）
+            inputs = self.inputCtrl.extract_ui_values(self.rnx_file)
+            try:
+                start_s = inputs.start_epoch
+                end_s = inputs.end_epoch
+            except AttributeError:
+                # 少数分支若返回 dict 也兼容
+                start_s = inputs["start_epoch"]
+                end_s = inputs["end_epoch"]
+
+            # 3) 统一成字符串并转为 GPSDate（把空格/下划线替换成 'T' 供 numpy 识别）
+            start_s = str(start_s)
+            end_s = str(end_s)
+            start_gps = GPSDate(np.datetime64(start_s.replace('_', ' ').replace(' ', 'T')))
+            end_gps = GPSDate(np.datetime64(end_s.replace('_', ' ').replace(' ', 'T')))
+
+            # 4) 目标目录：app/models
+            target_dir = Path(__file__).resolve().parent / "models"
+            target_dir.mkdir(parents=True, exist_ok=True)
+
+            # 5) 生成清单（HTTPS）
+            self.ui.terminalTextEdit.append(f"Generating CDDIS.list for {start_s} ~ {end_s} …")
+            create_cddis_file(target_dir, start_gps, end_gps)
+
+            # 6) 反馈并**提前结束**（不再执行下面旧的“Skipping PEA/Testing plot …”分支）
+            out_file = target_dir / "CDDIS.list"
+            try:
+                n_lines = sum(1 for _ in open(out_file, "r", encoding="utf-8"))
+            except Exception:
+                n_lines = "?"
+            self.ui.terminalTextEdit.append(f"✅ CDDIS.list generated: {out_file} (lines: {n_lines})")
             return
-        self.ui.terminalTextEdit.append(f"Displaying {len(html_files)} visualisation(s) from {html_dir}")
-        self.visCtrl.set_html_files(html_files)
-        
 
-
-
-        # # ── Minimal version: manually use example/visual/fig1.html ── #
-        # fig1 = os.path.join(EXAMPLE_DIR, "visual", "fig1.html")
-        # if not os.path.exists(fig1):
-        #    self.ui.terminalTextEdit.append(f"Cannot find fig1.html at: {fig1}")
-        #    return
-
-        # self.ui.terminalTextEdit.append(f"Displaying visualisation: {fig1}")
-        # # Register & show via visualisation controller
-        # self.visCtrl.set_html_files([fig1])
-
-        # # ── Replace with real backend call when ready:
-        # html_paths = backend.process(self.rnx_file, self.output_dir, **extractor.get_params())
-        # self.visCtrl.set_html_files(html_paths)
-
-    #endregion
+        except Exception as e:
+            self.ui.terminalTextEdit.append(f"❌ Failed to generate CDDIS.list: {e}")
+            return
+        # === [用 HTTPS 生成 CDDIS.list] 结束 ===
