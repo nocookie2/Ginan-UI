@@ -17,6 +17,7 @@ import numpy as np
 from app.utils.gn_functions import GPSDate
 from app.utils.cddis_credentials import validate_netrc as gui_validate_netrc
 from app.utils.download_products_https import create_cddis_file
+from app.utils.cddis_email import get_username_from_netrc, write_email, test_cddis_connection
 
 
 def setup_main_window():
@@ -99,9 +100,9 @@ class MainWindow(QMainWindow):
 
     # region Processing / Visualisation
     def _on_process_clicked(self):
-        """Generate CDDIS.list via HTTPS, then stop (skip legacy test/visualisation path)."""
+        """Generate CDDIS.list via HTTPS; test connectivity BEFORE accepting EMAIL."""
 
-        # 基本校验
+        # 0) 基本校验
         if not getattr(self, "rnx_file", None):
             self.ui.terminalTextEdit.append("Please select a RNX file first.")
             return
@@ -109,53 +110,70 @@ class MainWindow(QMainWindow):
             self.ui.terminalTextEdit.append("Please select an output directory first.")
             return
 
-        # === [用 HTTPS 生成 CDDIS.list] 开始 ===
-        try:
-            # 1) 校验 Earthdata 凭据；若缺失则弹出你们已有的“CDDIS Credentials”对话框
+        # 1) Earthdata 凭据校验（.netrc/_netrc），无则弹出现有的 Credentials 弹窗
+        ok, where = gui_validate_netrc()
+        if not ok:
+            self.ui.terminalTextEdit.append("No Earthdata credentials. Opening CDDIS Credentials dialog…")
+            self.ui.cddisCredentialsButton.click()
             ok, where = gui_validate_netrc()
             if not ok:
-                self.ui.terminalTextEdit.append("No Earthdata credentials. Opening CDDIS Credentials dialog…")
-                self.ui.cddisCredentialsButton.click()  # 打开现有凭据弹窗
-                ok, where = gui_validate_netrc()  # 用户保存后再校验
-                if not ok:
-                    self.ui.terminalTextEdit.append(f"❌ Credentials still invalid: {where}")
-                    return
-            self.ui.terminalTextEdit.append(f"✅ Credentials OK: {where}")
+                self.ui.terminalTextEdit.append(f"❌ Credentials still invalid: {where}")
+                return
+        self.ui.terminalTextEdit.append(f"✅ Credentials OK: {where}")
 
-            # 2) 取时间窗（extract_ui_values 需要 rnx 路径；返回 dataclass）
-            inputs = self.inputCtrl.extract_ui_values(self.rnx_file)
-            try:
-                start_s = inputs.start_epoch
-                end_s = inputs.end_epoch
-            except AttributeError:
-                # 少数分支若返回 dict 也兼容
-                start_s = inputs["start_epoch"]
-                end_s = inputs["end_epoch"]
-
-            # 3) 统一成字符串并转为 GPSDate（把空格/下划线替换成 'T' 供 numpy 识别）
-            start_s = str(start_s)
-            end_s = str(end_s)
-            start_gps = GPSDate(np.datetime64(start_s.replace('_', ' ').replace(' ', 'T')))
-            end_gps = GPSDate(np.datetime64(end_s.replace('_', ' ').replace(' ', 'T')))
-
-            # 4) 目标目录：app/models
-            target_dir = Path(__file__).resolve().parent / "models"
-            target_dir.mkdir(parents=True, exist_ok=True)
-
-            # 5) 生成清单（HTTPS）
-            self.ui.terminalTextEdit.append(f"Generating CDDIS.list for {start_s} ~ {end_s} …")
-            create_cddis_file(target_dir, start_gps, end_gps)
-
-            # 6) 反馈并**提前结束**（不再执行下面旧的“Skipping PEA/Testing plot …”分支）
-            out_file = target_dir / "CDDIS.list"
-            try:
-                n_lines = sum(1 for _ in open(out_file, "r", encoding="utf-8"))
-            except Exception:
-                n_lines = "?"
-            self.ui.terminalTextEdit.append(f"✅ CDDIS.list generated: {out_file} (lines: {n_lines})")
+        # 2) 从 .netrc 读取用户名（作为 email 候选；此时不写 env）
+        ok_user, email_candidate = get_username_from_netrc()
+        if not ok_user:
+            self.ui.terminalTextEdit.append(f"❌ Cannot read username from .netrc: {email_candidate}")
             return
 
-        except Exception as e:
-            self.ui.terminalTextEdit.append(f"❌ Failed to generate CDDIS.list: {e}")
+        # 3) 连通性 + 鉴权测试（通过后才“接受”邮箱）
+        ok_conn, why = test_cddis_connection()
+        if not ok_conn:
+            self.ui.terminalTextEdit.append(
+                f"❌ CDDIS connectivity check failed: {why}. Please verify Earthdata credentials via the CDDIS Credentials dialog."
+            )
             return
-        # === [用 HTTPS 生成 CDDIS.list] 结束 ===
+        self.ui.terminalTextEdit.append("🔌 CDDIS connectivity check passed.")
+        write_email(email_candidate)  # 通过后再写入 utils/CDDIS.env，并设置环境变量 EMAIL
+        self.ui.terminalTextEdit.append(f"📧 EMAIL set to: {email_candidate}")
+
+
+        # 4) 取时间窗（extract_ui_values 需要 rnx 路径；可能返回 dataclass 或 dict）
+        inputs = self.inputCtrl.extract_ui_values(self.rnx_file)
+        try:
+            start_s = inputs.start_epoch
+            end_s = inputs.end_epoch
+        except AttributeError:
+            start_s = inputs["start_epoch"]
+            end_s = inputs["end_epoch"]
+
+        # 防零长度时间窗
+        if str(start_s) == str(end_s):
+            self.ui.terminalTextEdit.append(
+                "❌ Time window is zero-length. Click 'Time Window' and choose a start/end range (e.g., a full day)."
+            )
+            return
+
+        # 5) 转成 GPSDate（把空格/下划线替换成 'T' 供 numpy 识别）
+        start_s = str(start_s);
+        end_s = str(end_s)
+        start_gps = GPSDate(np.datetime64(start_s.replace('_', ' ').replace(' ', 'T')))
+        end_gps = GPSDate(np.datetime64(end_s.replace('_', ' ').replace(' ', 'T')))
+
+        # 6) 目标目录：app/models
+        target_dir = Path(__file__).resolve().parent / "models"
+        target_dir.mkdir(parents=True, exist_ok=True)
+
+        # 7) 生成清单（HTTPS）——注意：函数不返回路径！
+        self.ui.terminalTextEdit.append(f"Generating CDDIS.list for {start_s} ~ {end_s} …")
+        create_cddis_file(target_dir, start_gps, end_gps)
+
+        # 8) 正确地统计文件行数并反馈
+        out_file = target_dir / "CDDIS.list"
+        try:
+            n_lines = sum(1 for _ in open(out_file, "r", encoding="utf-8"))
+        except Exception:
+            n_lines = "?"
+        self.ui.terminalTextEdit.append(f"✅ CDDIS.list generated: {out_file} (lines: {n_lines})")
+        return
