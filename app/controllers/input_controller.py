@@ -30,6 +30,7 @@ from PySide6.QtWidgets import (
 
 from app.models.execution import Execution, GENERATED_YAML, TEMPLATE_PATH
 from app.models.rinex_extractor import RinexExtractor
+from app.utils.cddis_credentials import save_earthdata_credentials
 
 class InputController(QObject):
     """
@@ -798,14 +799,16 @@ class CredentialsDialog(QDialog):
             QMessageBox.warning(self, "Error", "Username and password cannot be empty")
             return
 
-        # 写入 ~/.netrc
-        netrc_path = os.path.expanduser("~/.netrc")
-        with open(netrc_path, "w") as f:
-            f.write(f"machine urs.earthdata.nasa.gov login {username} password {password}\n")
+        # ✅ Save correctly in one go (on Windows, it will write to both %USERPROFILE%.netrc and %USERPROFILE%_netrc；
+        #    on macOS/Linux, it will write to ~/.netrc and automatically run chmod 600; both URS and CDDIS entries will be written at the same time）
+        try:
+            paths = save_earthdata_credentials(username, password)
+        except Exception as e:
+            QMessageBox.critical(self, "Save failed", f"❌ Failed to save credentials:\n{e}")
+            return
 
-        os.chmod(netrc_path, 0o600)
-
-        QMessageBox.information(self, "Success", "✅ Credentials saved to ~/.netrc")
+        QMessageBox.information(self, "Success",
+                                "✅ Credentials saved to:\n" + "\n".join(str(p) for p in paths))
         self.accept()
 
 
