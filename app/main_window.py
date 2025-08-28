@@ -16,7 +16,6 @@ from pathlib import Path
 import numpy as np
 from app.utils.gn_functions import GPSDate
 from app.utils.cddis_credentials import validate_netrc as gui_validate_netrc
-from app.utils.download_products_https import create_cddis_file
 from app.utils.cddis_email import get_username_from_netrc, write_email, test_cddis_connection
 
 
