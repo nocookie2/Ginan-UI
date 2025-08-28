@@ -16,7 +16,6 @@ from pathlib import Path
 import numpy as np
 from app.utils.gn_functions import GPSDate
 from app.utils.cddis_credentials import validate_netrc as gui_validate_netrc
-from app.utils.download_products_https import create_cddis_file
 from app.utils.cddis_email import get_username_from_netrc, write_email, test_cddis_connection
 
 
@@ -118,65 +117,28 @@ class MainWindow(QMainWindow):
             self.ui.cddisCredentialsButton.click()
             ok, where = gui_validate_netrc()
         if not ok:
-            self.ui.terminalTextEdit.append(f"❌ Credentials invalid: {where}")
+            self.ui.terminalTextEdit.append(f" Credentials invalid: {where}")
             return
-        self.ui.terminalTextEdit.append(f"✅ Credentials OK: {where}")
+        self.ui.terminalTextEdit.append(f" Credentials OK: {where}")
 
         # 2) 从 .netrc 读取用户名（团队约定：username == email；此时不落盘）
         ok_user, email_candidate = get_username_from_netrc()
         if not ok_user:
-            self.ui.terminalTextEdit.append(f"❌ Cannot read username from .netrc: {email_candidate}")
+            self.ui.terminalTextEdit.append(f" Cannot read username from .netrc: {email_candidate}")
             return
 
         # 3) 连通性 + 鉴权测试（requests.Session 双阶段）
         ok_conn, why = test_cddis_connection()
         if not ok_conn:
             self.ui.terminalTextEdit.append(
-                f"❌ CDDIS connectivity check failed: {why}. Please verify Earthdata credentials via the CDDIS Credentials dialog."
+                f" CDDIS connectivity check failed: {why}. Please verify Earthdata credentials via the CDDIS Credentials dialog."
             )
             return
-        self.ui.terminalTextEdit.append("🔌 CDDIS connectivity check passed.")
+        self.ui.terminalTextEdit.append(" CDDIS connectivity check passed.")
 
         # 通过测试后，才“接受/落盘” EMAIL
         write_email(email_candidate)
-        self.ui.terminalTextEdit.append(f"📧 EMAIL set to: {email_candidate}")
-
-        # 4) 取时间窗并生成 CDDIS.list（零长度直接终止）
-        inputs = self.inputCtrl.extract_ui_values(self.rnx_file)
-        try:
-            start_s = inputs.start_epoch
-            end_s = inputs.end_epoch
-        except AttributeError:
-            start_s = inputs["start_epoch"]
-            end_s = inputs["end_epoch"]
-
-        if str(start_s) == str(end_s):
-            self.ui.terminalTextEdit.append(
-                "❌ Time window is zero-length. Click 'Time Window' and choose a start/end range (e.g., a full day)."
-            )
-            return
-
-        # 5) 生成 CDDIS.list（写到 app/models）；若为空也视为失败并阻断
-        start_s = str(start_s);
-        end_s = str(end_s)
-        start_gps = GPSDate(np.datetime64(start_s.replace('_', ' ').replace(' ', 'T')))
-        end_gps = GPSDate(np.datetime64(end_s.replace('_', ' ').replace(' ', 'T')))
-
-        target_dir = Path(__file__).resolve().parent / "models"
-        target_dir.mkdir(parents=True, exist_ok=True)
-
-        self.ui.terminalTextEdit.append(f"Generating CDDIS.list for {start_s} ~ {end_s} …")
-        create_cddis_file(target_dir, start_gps, end_gps)
-
-        out_file = target_dir / "CDDIS.list"
-        try:
-            n_lines = sum(1 for _ in open(out_file, "r", encoding="utf-8"))
-        except Exception:
-            n_lines = 0
-        if n_lines <= 0:
-            self.ui.terminalTextEdit.append(f"❌ CDDIS.list is empty: {out_file}. Check time window and credentials.")
-            return
-        self.ui.terminalTextEdit.append(f"✅ CDDIS.list generated: {out_file} (lines: {n_lines})")
+        self.ui.terminalTextEdit.append(f" EMAIL set to: {email_candidate}")
 
         # === 预处理全部成功；后续继续执行你们“原有的 Process 流程” ===
 
