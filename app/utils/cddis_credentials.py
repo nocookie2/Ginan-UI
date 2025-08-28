@@ -12,9 +12,9 @@ def _win_user_home() -> Path:
 
 def netrc_candidates() -> tuple[Path, ...]:
     """
-    返回本机可能使用到的凭据文件路径：
-      - Windows: 先返回 %USERPROFILE%\.netrc（你的 HTTPS 脚本会看它），再返回 %USERPROFILE%\_netrc
-      - macOS/Linux: 返回 ~/.netrc
+    Return possible credential file paths on the local machine:
+      - Windows: first return %USERPROFILE%\\.netrc (used by your HTTPS script), then return %USERPROFILE%\\_netrc
+      - macOS/Linux: return ~/.netrc
     """
     if platform.system().lower().startswith("win"):
         return (_win_user_home() / ".netrc", _win_user_home() / "_netrc")
@@ -27,10 +27,10 @@ def _write_text_secure(p: Path, content: str) -> None:
 
 def save_earthdata_credentials(username: str, password: str) -> tuple[Path, ...]:
     """
-    保存 Earthdata 凭据；一次写两台主机（URS + CDDIS）。
-    - Windows: 同时写 .netrc 和 _netrc（保证你的 HTTPS 脚本能找到 .netrc；工具链也能用 _netrc）
-    - macOS/Linux: 写 ~/.netrc 并设 600 权限
-    返回实际写入的路径列表。
+    Save Earthdata credentials; write entries for two hosts at once (URS + CDDIS).
+    - Windows: write both .netrc and _netrc (ensures your HTTPS script can find .netrc, and the toolchain can use _netrc)
+    - macOS/Linux: write ~/.netrc and set permission to 600
+    Return the list of actual file paths written.
     """
     content = (
         f"machine {URS}   login {username} password {password}\n"
@@ -38,17 +38,17 @@ def save_earthdata_credentials(username: str, password: str) -> tuple[Path, ...]
     )
     written: list[Path] = []
     for p in netrc_candidates():
-        # Windows 会写两份； *nix 就一份
+        # Windows writes two files; *nix writes one file.
         _write_text_secure(p, content)
         written.append(p)
-    # 方便部分库查找
+    # For easier lookup by certain libraries
     os.environ["NETRC"] = str(written[0])
     return tuple(written)
 
 def _ensure_windows_mirror() -> None:
     """
-    若只有 _netrc 而没有 .netrc，则在 Windows 上自动复制一份 .netrc，
-    以适配 download_products_https.py（它会去读 ~/.netrc）。
+    If only _netrc exists without .netrc, automatically create a copy as .netrc on Windows
+    to support download_products_https.py (which reads ~/.netrc).
     """
     if not platform.system().lower().startswith("win"):
         return
@@ -61,15 +61,16 @@ def _ensure_windows_mirror() -> None:
 
 def validate_netrc(required=(URS, CDDIS)) -> tuple[bool, str]:
     """
-    校验是否有可用凭据：
-      - Windows: 若只有 _netrc，自动镜像一份 .netrc
-      - 检查 required 主机都有 login/password
-      - 设置 NETRC 环境变量指向首选文件（Windows 为 .netrc；*nix 为 ~/.netrc）
-    返回 (ok, 路径或错误原因)
+    Validate whether usable credentials exist:
+      - Windows: if only _netrc exists, automatically mirror it as .netrc
+      - Check that all required hosts have login/password
+      - Set the NETRC environment variable to point to the preferred file
+        (on Windows: .netrc; on *nix: ~/.netrc)
+    Return (ok, path or error reason)
     """
     _ensure_windows_mirror()
     candidates = netrc_candidates()
-    # 取第一个存在的作为“首选”（Windows 为 .netrc；*nix 就 ~/.netrc）
+    # Use the first existing file as the “preferred” one (on Windows: .netrc; on *nix: ~/.netrc)
     p = next((c for c in candidates if c.exists()), candidates[0])
     if not p.exists():
         return False, f"not found: {p}"

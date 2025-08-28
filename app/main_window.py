@@ -110,8 +110,8 @@ class MainWindow(QMainWindow):
             self.ui.terminalTextEdit.append("Please select an output directory first.")
             return
 
-        # === CDDIS (HTTPS) 预处理 —— 失败则立即终止；成功才继续旧流程 ===
-        # 1) Earthdata 凭据校验；无则弹你们现有的 Credentials 对话框
+        # === CDDIS (HTTPS) pre-check — terminate immediately on failure; proceed with the legacy flow only on success ===
+        # 1) Earthdata credential validation; if missing, prompt with the existing Credentials dialog
         ok, where = gui_validate_netrc()
         if not ok and hasattr(self.ui, "cddisCredentialsButton"):
             self.ui.terminalTextEdit.append("No Earthdata credentials. Opening CDDIS Credentials dialog…")
@@ -122,26 +122,26 @@ class MainWindow(QMainWindow):
             return
         self.ui.terminalTextEdit.append(f"✅ Credentials OK: {where}")
 
-        # 2) 从 .netrc 读取用户名（团队约定：username == email；此时不落盘）
+        # 2) Read the username from .netrc (team convention: username == email; no file write at this stage)）
         ok_user, email_candidate = get_username_from_netrc()
         if not ok_user:
             self.ui.terminalTextEdit.append(f"❌ Cannot read username from .netrc: {email_candidate}")
             return
 
-        # 3) 连通性 + 鉴权测试（requests.Session 双阶段）
+        # 3) Connectivity + authentication test (two-phase with requests.Session）
         ok_conn, why = test_cddis_connection()
         if not ok_conn:
             self.ui.terminalTextEdit.append(
                 f"❌ CDDIS connectivity check failed: {why}. Please verify Earthdata credentials via the CDDIS Credentials dialog."
             )
             return
-        self.ui.terminalTextEdit.append("🔌 CDDIS connectivity check passed.")
+        self.ui.terminalTextEdit.append("✅ CDDIS connectivity check passed.")
 
-        # 通过测试后，才“接受/落盘” EMAIL
+        # Accept/write EMAIL only after passing the test
         write_email(email_candidate)
-        self.ui.terminalTextEdit.append(f"📧 EMAIL set to: {email_candidate}")
+        self.ui.terminalTextEdit.append(f" EMAIL set to: {email_candidate}")
 
-        # 4) 取时间窗并生成 CDDIS.list（零长度直接终止）
+        # 4) Retrieve the time window and generate CDDIS.list (terminate immediately if zero-length)
         inputs = self.inputCtrl.extract_ui_values(self.rnx_file)
         try:
             start_s = inputs.start_epoch
@@ -156,7 +156,7 @@ class MainWindow(QMainWindow):
             )
             return
 
-        # 5) 生成 CDDIS.list（写到 app/models）；若为空也视为失败并阻断
+        # 5) Generate CDDIS.list (write to app/models); treat as failure and block if empty
         start_s = str(start_s);
         end_s = str(end_s)
         start_gps = GPSDate(np.datetime64(start_s.replace('_', ' ').replace(' ', 'T')))
@@ -178,7 +178,7 @@ class MainWindow(QMainWindow):
             return
         self.ui.terminalTextEdit.append(f"✅ CDDIS.list generated: {out_file} (lines: {n_lines})")
 
-        # === 预处理全部成功；后续继续执行你们“原有的 Process 流程” ===
+        # === All pre-checks succeeded; proceed with the legacy Process flow” ===
 
         # —— ignore the PEA processing and jump to the plot generation directly —— #
         self.ui.terminalTextEdit.append("Skipping PEA processing due to configuration issues")

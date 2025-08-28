@@ -11,12 +11,12 @@ ENV_FILE = Path(__file__).resolve().parent / "CDDIS.env"
 EMAIL_KEY = "EMAIL"
 
 # ------------------------------
-#  选择 .netrc/_netrc 的路径（兼容不同实现）
+#  Select the .netrc/_netrc path (for compatibility with different implementations)
 # ------------------------------
 def _pick_netrc() -> Path:
     """
-    优先使用 app.utils.cddis_credentials 中已提供的路径函数；
-    若不可用，则尝试 candidates；再否则按平台默认推断。
+    Prefer using the path function provided in app.utils.cddis_credentials;
+    if unavailable, try the candidates; otherwise, fall back to platform defaults.
     """
     try:
         from app.utils.cddis_credentials import netrc_path as _netrc_path  # type: ignore
@@ -43,10 +43,10 @@ def _pick_netrc() -> Path:
 
 
 # ------------------------------
-#  EMAIL 读/写
+#  EMAIL read/write
 # ------------------------------
 def read_email() -> str | None:
-    """优先读环境变量，其次读 utils/CDDIS.env（支持 EMAIL=xxx 或 EMAIL=\"xxx\"）。"""
+    """Read from the environment variable first, then from utils/CDDIS.env (supports EMAIL=xxx or EMAIL="xxx")。"""
     v = os.environ.get(EMAIL_KEY, "").strip()
     if v:
         return v
@@ -62,7 +62,7 @@ def read_email() -> str | None:
 
 
 def write_email(email: str) -> Path:
-    """写 utils/CDDIS.env，并同步环境变量 EMAIL。"""
+    """Write utils/CDDIS.env and update the EMAIL environment variable at the same time."""
     ENV_FILE.parent.mkdir(parents=True, exist_ok=True)
     ENV_FILE.write_text(f'{EMAIL_KEY}="{email}"\n', encoding="utf-8")
     os.environ[EMAIL_KEY] = email
@@ -70,12 +70,12 @@ def write_email(email: str) -> Path:
 
 
 # ------------------------------
-#  从 .netrc 读取用户名（你们约定：username == email）
+#  Read the username from .netrc (with the convention: username == email)
 # ------------------------------
 def get_username_from_netrc(prefer_host: str = "urs.earthdata.nasa.gov") -> Tuple[bool, str]:
     """
-    只读取 .netrc/_netrc 的用户名（不写 env、不落盘）。
-    返回 (ok, username_or_reason)。
+    Read only the username from .netrc/_netrc (no env writes, no file output).
+    Return (ok, username_or_reason).
     """
     p = _pick_netrc()
     if not p.exists():
@@ -92,7 +92,7 @@ def get_username_from_netrc(prefer_host: str = "urs.earthdata.nasa.gov") -> Tupl
 
 def ensure_email_from_netrc(prefer_host: str = "urs.earthdata.nasa.gov") -> Tuple[bool, str]:
     """
-    若 EMAIL 已存在，直接返回；否则从 .netrc 取用户名作为 EMAIL，写入 CDDIS.env 并返回。
+    If EMAIL already exists, return it directly; otherwise, read the username from .netrc as EMAIL, write it to CDDIS.env, and return.
     """
     existing = read_email()
     if existing:
@@ -106,10 +106,10 @@ def ensure_email_from_netrc(prefer_host: str = "urs.earthdata.nasa.gov") -> Tupl
 
 
 # ------------------------------
-#  取 .netrc 的 (username, password) 供鉴权测试
+#  Retrieve (username, password) from .netrc for authentication testing
 # ------------------------------
 def _get_netrc_auth() -> tuple[str, str] | None:
-    """从 .netrc/_netrc 取 (username, password)。"""
+    """Retrieve (username, password) from .netrc/_netrc."""
     p = _pick_netrc()
     if not p.exists():
         return None
@@ -122,27 +122,27 @@ def _get_netrc_auth() -> tuple[str, str] | None:
 
 
 # ------------------------------
-#  连通性 + 鉴权测试（双阶段）
+#  Connectivity + authentication test (two-phase)
 # ------------------------------
 def test_cddis_connection(timeout: int = 15) -> tuple[bool, str]:
     """
-    Phase 1: 访问 robots.txt（网络可达）
-    Phase 2: requests.Session() 携带 .netrc 的 (user, pass) 访问受限目录（鉴权可用）
+    Phase 1: Access robots.txt (network reachable)
+    Phase 2: Use requests.Session() with (user, pass) from .netrc to access a restricted directory (authentication valid)
     """
-    import requests  # 既然你已安装，我们强制走 requests 路径
-    # Phase 1: 轻量连通
+    import requests
+    # Phase 1: Lightweight connectivity
     r = requests.get("https://cddis.nasa.gov/robots.txt",
                      timeout=(5, timeout), headers={"User-Agent": "ginan-ui/https-check"})
     if r.status_code != 200:
         return False, f"HTTP {r.status_code} on robots.txt"
 
-    # Phase 2: 受限目录鉴权
+    # Phase 2: Restricted directory authentication
     creds = _get_netrc_auth()
     if not creds:
         return False, "no usable credentials in .netrc"
     session = requests.Session()
     session.auth = creds
-    url = "https://cddis.nasa.gov/archive/gnss/products/2060/"  # 历史周目录，稳定存在
+    url = "https://cddis.nasa.gov/archive/gnss/products/2060/"  # Historical weekly directory, reliably available
     resp = session.get(url, timeout=(5, timeout),
                        headers={"User-Agent": "ginan-ui/auth-check"},
                        allow_redirects=True)

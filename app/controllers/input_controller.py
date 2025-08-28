@@ -822,8 +822,8 @@ class CredentialsDialog(QDialog):
             QMessageBox.warning(self, "Error", "Username and password cannot be empty")
             return
 
-        # ✅ 一次性正确保存（Windows 会同时写 %USERPROFILE%\.netrc 和 %USERPROFILE%\_netrc；
-        #    macOS/Linux 会写 ~/.netrc 并自动 chmod 600；同时写入 URS + CDDIS 两条）
+        # ✅ Save correctly in one go (Windows will write both %USERPROFILE%\\.netrc and %USERPROFILE%\\_netrc;
+        #    macOS/Linux will write ~/.netrc and automatically chmod 600; both URS and CDDIS entries are written)
         try:
             paths = save_earthdata_credentials(username, password)
         except Exception as e:
