@@ -142,43 +142,6 @@ class MainWindow(QMainWindow):
         write_email(email_candidate)
         self.ui.terminalTextEdit.append(f"📧 EMAIL set to: {email_candidate}")
 
-        # 4) Retrieve time window and generate CDDIS.list (terminate immediately if zero-length）
-        inputs = self.inputCtrl.extract_ui_values(self.rnx_file)
-        try:
-            start_s = inputs.start_epoch
-            end_s = inputs.end_epoch
-        except AttributeError:
-            start_s = inputs["start_epoch"]
-            end_s = inputs["end_epoch"]
-
-        if str(start_s) == str(end_s):
-            self.ui.terminalTextEdit.append(
-                "❌ Time window is zero-length. Click 'Time Window' and choose a start/end range (e.g., a full day)."
-            )
-            return
-
-        # 5) Generate CDDIS.list (write to app/models); if empty, treat as failure and block further steps
-        start_s = str(start_s);
-        end_s = str(end_s)
-        start_gps = GPSDate(np.datetime64(start_s.replace('_', ' ').replace(' ', 'T')))
-        end_gps = GPSDate(np.datetime64(end_s.replace('_', ' ').replace(' ', 'T')))
-
-        target_dir = Path(__file__).resolve().parent / "models"
-        target_dir.mkdir(parents=True, exist_ok=True)
-
-        self.ui.terminalTextEdit.append(f"Generating CDDIS.list for {start_s} ~ {end_s} …")
-        create_cddis_file(target_dir, start_gps, end_gps)
-
-        out_file = target_dir / "CDDIS.list"
-        try:
-            n_lines = sum(1 for _ in open(out_file, "r", encoding="utf-8"))
-        except Exception:
-            n_lines = 0
-        if n_lines <= 0:
-            self.ui.terminalTextEdit.append(f"❌ CDDIS.list is empty: {out_file}. Check time window and credentials.")
-            return
-        self.ui.terminalTextEdit.append(f"✅ CDDIS.list generated: {out_file} (lines: {n_lines})")
-
         # === All preprocessing succeeded; continue with your original Process workflow afterwards” ===
 
 
