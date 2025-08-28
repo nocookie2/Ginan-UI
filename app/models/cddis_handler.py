@@ -42,6 +42,7 @@ from app.utils.gn_functions import GPSDate
 import requests
 from bs4 import BeautifulSoup
 import netrc
+import platform
 
 BASE_URL = "https://cddis.nasa.gov/archive"
 
@@ -52,7 +53,11 @@ def validate_netrc(machine="urs.earthdata.nasa.gov") -> tuple[bool, str]:
     :param machine: The target credentials to use defaulted to urs.earthdata.nasa.gov
     :returns (bool,str): If returns true then string will be empty. If false string will contain error message 
     """
-    netrc_path  = Path.home() / ".netrc"
+    if platform.system() == "Windows":
+        netrc_path = Path.home() / "_netrc"
+    else: # will assume linux 
+        netrc_path = Path.home() / ".netrc"
+
     if not netrc_path.exists():
         #(f".netrc wasn't found at {netrc_path}")
         return False, (f".netrc wasn't found at {netrc_path}")
