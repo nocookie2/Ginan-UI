@@ -12,17 +12,24 @@ from app.utils.find_executable import get_pea_exec
 from app.utils.ui_compilation import compile_ui
 from app.controllers.input_controller import InputController
 from app.controllers.visualisation_controller import VisualisationController
+from pathlib import Path
+import numpy as np
+from app.utils.gn_functions import GPSDate
+from app.utils.cddis_credentials import validate_netrc as gui_validate_netrc
+from app.utils.download_products_https import create_cddis_file
+from app.utils.cddis_email import get_username_from_netrc, write_email, test_cddis_connection
 
 
 def setup_main_window():
     # Whilst developing, we compile every time :)
-    #try :
+    # try :
     #    from app.views.main_window_ui import Ui_MainWindow
-    #except ModuleNotFoundError:
+    # except ModuleNotFoundError:
     compile_ui()
     from app.views.main_window_ui import Ui_MainWindow
     window = Ui_MainWindow()
     return window
+
 
 class FullHtmlDialog(QDialog):
     def __init__(self, file_path: str):
@@ -33,6 +40,7 @@ class FullHtmlDialog(QDialog):
         webview.setUrl(QUrl.fromLocalFile(file_path))
         layout.addWidget(webview)
         self.resize(800, 600)
+
 
 class MainWindow(QMainWindow):
     """
@@ -69,7 +77,7 @@ class MainWindow(QMainWindow):
         self.inputCtrl.pea_ready.connect(self._on_process_clicked)
 
         # —— State variables —— #
-        self.rnx_file:   str | None = None
+        self.rnx_file: str | None = None
         self.output_dir: str | None = None
 
         # —— Signal connections —— #
@@ -92,7 +100,8 @@ class MainWindow(QMainWindow):
         self.rnx_file = rnx_path
         self.output_dir = out_path
 
-    #region Processing / Visualisation
+        # region Processing / Visualisation
+
     def _on_process_clicked(self):
         """Call backend model to generate outputs; then visualise as needed."""
 
@@ -102,6 +111,77 @@ class MainWindow(QMainWindow):
         if not self.output_dir:
             self.ui.terminalTextEdit.append("Please select an output directory first.")
             return
+
+                # === CDDIS (HTTPS) preprocessing — terminate immediately if it fails; continue with the old workflow only if successful ===
+        # 1) Earthdata credentials validation; if missing, trigger your existing Credentials dialog.
+        ok, where = gui_validate_netrc()
+        if not ok and hasattr(self.ui, "cddisCredentialsButton"):
+            self.ui.terminalTextEdit.append("No Earthdata credentials. Opening CDDIS Credentials dialog…")
+            self.ui.cddisCredentialsButton.click()
+            ok, where = gui_validate_netrc()
+        if not ok:
+            self.ui.terminalTextEdit.append(f"❌ Credentials invalid: {where}")
+            return
+        self.ui.terminalTextEdit.append(f"✅ Credentials OK: {where}")
+
+        # 2) Read username from .netrc (team convention: username == email; no persistence at this stage）
+        ok_user, email_candidate = get_username_from_netrc()
+        if not ok_user:
+            self.ui.terminalTextEdit.append(f"❌ Cannot read username from .netrc: {email_candidate}")
+            return
+
+        # 3) Connectivity + authentication test (two-phase with requests.Session）
+        ok_conn, why = test_cddis_connection()
+        if not ok_conn:
+            self.ui.terminalTextEdit.append(
+                f"❌ CDDIS connectivity check failed: {why}. Please verify Earthdata credentials via the CDDIS Credentials dialog."
+            )
+            return
+        self.ui.terminalTextEdit.append("🔌 CDDIS connectivity check passed.")
+
+        # Only after passing the tests, ‘accept/persist’ the EMAIL
+        write_email(email_candidate)
+        self.ui.terminalTextEdit.append(f"📧 EMAIL set to: {email_candidate}")
+
+        # 4) Retrieve time window and generate CDDIS.list (terminate immediately if zero-length）
+        inputs = self.inputCtrl.extract_ui_values(self.rnx_file)
+        try:
+            start_s = inputs.start_epoch
+            end_s = inputs.end_epoch
+        except AttributeError:
+            start_s = inputs["start_epoch"]
+            end_s = inputs["end_epoch"]
+
+        if str(start_s) == str(end_s):
+            self.ui.terminalTextEdit.append(
+                "❌ Time window is zero-length. Click 'Time Window' and choose a start/end range (e.g., a full day)."
+            )
+            return
+
+        # 5) Generate CDDIS.list (write to app/models); if empty, treat as failure and block further steps
+        start_s = str(start_s);
+        end_s = str(end_s)
+        start_gps = GPSDate(np.datetime64(start_s.replace('_', ' ').replace(' ', 'T')))
+        end_gps = GPSDate(np.datetime64(end_s.replace('_', ' ').replace(' ', 'T')))
+
+        target_dir = Path(__file__).resolve().parent / "models"
+        target_dir.mkdir(parents=True, exist_ok=True)
+
+        self.ui.terminalTextEdit.append(f"Generating CDDIS.list for {start_s} ~ {end_s} …")
+        create_cddis_file(target_dir, start_gps, end_gps)
+
+        out_file = target_dir / "CDDIS.list"
+        try:
+            n_lines = sum(1 for _ in open(out_file, "r", encoding="utf-8"))
+        except Exception:
+            n_lines = 0
+        if n_lines <= 0:
+            self.ui.terminalTextEdit.append(f"❌ CDDIS.list is empty: {out_file}. Check time window and credentials.")
+            return
+        self.ui.terminalTextEdit.append(f"✅ CDDIS.list generated: {out_file} (lines: {n_lines})")
+
+        # === All preprocessing succeeded; continue with your original Process workflow afterwards” ===
+
 
         # —— ignore the PEA processing and jump to the plot generation directly —— #
         self.ui.terminalTextEdit.append("Skipping PEA processing due to configuration issues")

@@ -23,10 +23,14 @@ from PySide6.QtWidgets import (
     QInputDialog,
     QMessageBox,
     QComboBox,
+    QLineEdit,
+    QPushButton,
+    QLabel
 )
 
 from app.models.execution import Execution, GENERATED_YAML, TEMPLATE_PATH
 from app.models.rinex_extractor import RinexExtractor
+from app.utils.cddis_credentials import save_earthdata_credentials
 from app.utils.download_products import download_ppp_products
 
 
@@ -106,6 +110,16 @@ class InputController(QObject):
         self.ui.showConfigButton.clicked.connect(self.on_show_config)
         self.ui.showConfigButton.setCursor(Qt.CursorShape.PointingHandCursor)
         self.ui.processButton.clicked.connect(self.on_run_pea)
+
+        # CDDIS Credentials button
+        self.ui.cddisCredentialsButton.clicked.connect(self._open_cddis_credentials_dialog)
+
+
+
+    def _open_cddis_credentials_dialog(self):
+        """ Open the CDDIS Credential Input Dialog Box """
+        dialog = CredentialsDialog(self.parent)
+        dialog.exec()
 
     #region File Selection + Metadata Extraction
 
@@ -768,3 +782,52 @@ class InputController(QObject):
         return ["RAP", "ULT", "FIN"]
 
     #endregion
+
+
+class CredentialsDialog(QDialog):
+    """ Credentials, pop-up window """
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("CDDIS Credentials")
+
+        layout = QVBoxLayout()
+
+        # Username
+        layout.addWidget(QLabel("Username:"))
+        self.username_input = QLineEdit()
+        layout.addWidget(self.username_input)
+
+        # Password
+        layout.addWidget(QLabel("Password:"))
+        self.password_input = QLineEdit()
+        self.password_input.setEchoMode(QLineEdit.Password)
+        layout.addWidget(self.password_input)
+
+        # Confirm button
+        self.confirm_button = QPushButton("Save")
+        self.confirm_button.clicked.connect(self.save_credentials)
+        layout.addWidget(self.confirm_button)
+
+        self.setLayout(layout)
+
+    def save_credentials(self):
+        username = self.username_input.text().strip()
+        password = self.password_input.text().strip()
+
+        if not username or not password:
+            QMessageBox.warning(self, "Error", "Username and password cannot be empty")
+            return
+
+        # ✅ Save correctly in one go (on Windows, it will write to both %USERPROFILE%.netrc and %USERPROFILE%_netrc；
+        #    on macOS/Linux, it will write to ~/.netrc and automatically run chmod 600; both URS and CDDIS entries will be written at the same time）
+        try:
+            paths = save_earthdata_credentials(username, password)
+        except Exception as e:
+            QMessageBox.critical(self, "Save failed", f"❌ Failed to save credentials:\n{e}")
+            return
+
+        QMessageBox.information(self, "Success",
+                                "✅ Credentials saved to:\n" + "\n".join(str(p) for p in paths))
+        self.accept()
+
+
