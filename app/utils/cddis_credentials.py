@@ -32,6 +32,7 @@ def save_earthdata_credentials(username: str, password: str) -> tuple[Path, ...]
     - macOS/Linux: 写 ~/.netrc 并设 600 权限
     返回实际写入的路径列表。
     """
+    # need to see if this overrides the existing .netrc file
     content = (
         f"machine {URS}   login {username} password {password}\n"
         f"machine {CDDIS} login {username} password {password}\n"
