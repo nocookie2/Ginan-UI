@@ -92,6 +92,8 @@ class MainWindow(QMainWindow):
         self.visSelector = QComboBox(self)
         self.ui.rightLayout.addWidget(self.visSelector)
         self.visCtrl.bind_selector(self.visSelector)
+        
+
 
     def on_files_ready(self, rnx_path: str, out_path: str):
         """Store file paths received from InputController."""
@@ -110,7 +112,7 @@ class MainWindow(QMainWindow):
             self.ui.terminalTextEdit.append("Please select an output directory first.")
             return
 
-        # === CDDIS (HTTPS) preprocessing — terminate immediately if it fails; continue with the old workflow only if successful ===
+                # === CDDIS (HTTPS) preprocessing — terminate immediately if it fails; continue with the old workflow only if successful ===
         # 1) Earthdata credentials validation; if missing, trigger your existing Credentials dialog.
         ok, where = gui_validate_netrc()
         if not ok and hasattr(self.ui, "cddisCredentialsButton"):
@@ -180,6 +182,7 @@ class MainWindow(QMainWindow):
 
         # === All preprocessing succeeded; continue with your original Process workflow afterwards” ===
 
+
         # —— ignore the PEA processing and jump to the plot generation directly —— #
         self.ui.terminalTextEdit.append("Skipping PEA processing due to configuration issues")
         self.ui.terminalTextEdit.append("Testing plot generation directly instead...")
@@ -208,26 +211,28 @@ class MainWindow(QMainWindow):
         # except Exception as err:
         #     self.ui.terminalTextEdit.append(f"Visualization generation failed: {err}")
         # directly call the plot generation function
-
+        
         try:
             self.ui.terminalTextEdit.append("Testing plot generation directly...")
-
+            
             # use the test data directory
             test_output_dir = Path(__file__).resolve().parents[1] / "tests" / "resources" / "outputData"
             test_visual_dir = test_output_dir / "visual"
-
+            
             self.ui.terminalTextEdit.append(f"Looking for POS files in: {test_output_dir}")
-
+            
             test_visual_dir.mkdir(parents=True, exist_ok=True)
-
+            
             self.visCtrl.build_from_execution()
-
+            
             self.ui.terminalTextEdit.append("Plot generation completed. Check the visualization panel above.")
-
+                
         except Exception as err:
             self.ui.terminalTextEdit.append(f"Test plot generation failed: {err}")
             import traceback
             self.ui.terminalTextEdit.append(f"Details: {traceback.format_exc()}")
+
+
 
         # # ── Minimal version: manually use example/visual/fig1.html ── #
         # fig1 = os.path.join(EXAMPLE_DIR, "visual", "fig1.html")
@@ -243,4 +248,6 @@ class MainWindow(QMainWindow):
         # html_paths = backend.process(self.rnx_file, self.output_dir, **extractor.get_params())
         # self.visCtrl.set_html_files(html_paths)
 
-    # endregion
+
+
+    #endregion
